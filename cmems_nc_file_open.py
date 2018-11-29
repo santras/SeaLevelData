@@ -12,7 +12,7 @@ from netCDF4 import Dataset
 # changed from the beginning of this file
 # Writes output file in the "gl"-format.
 
-# TESTING
+# TESTING commit
 
 headerfilename=('header.txt')           # Header titles as a txt file, should be in the working directory
 path="..\\"                      # Path for the original data file folder, best not to have anything else
