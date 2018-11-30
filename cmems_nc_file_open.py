@@ -15,8 +15,8 @@ from netCDF4 import Dataset
 # TESTING commit again again
 
 headerfilename=('header.txt')           # Header titles as a txt file, should be in the working directory
-path="..\\"                      # Path for the original data file folder, best not to have anything else
-output_path= path +"\Test\\"      # than the .nc data file in this directory
+path="../TGData//"                      # Path for the original data file folder, best not to have anything else
+output_path= path +"../Tests//"      # than the .nc data file in this directory
 time_difference=60                      # Time difference in minutes between measurements
 
 # Function 1
@@ -71,6 +71,7 @@ def open_ncfiles(file,header):
     #print(data.dimensions['TIME'])
     #print(data.variables.keys())
     #print(data.variables['TIME'])
+
     try:
         nc = Dataset(file, 'r')
         lat = nc.variables['LATITUDE'][0]
@@ -85,8 +86,8 @@ def open_ncfiles(file,header):
             elif attr=="platform_code":
                 station=(getattr(nc,attr))
                 #print(datum)
-                print(station)
-            #print (attr, '=', getattr(nc, attr))   # This can be used if want to see all of the attributes
+                #print(station)
+                #print (attr, '=', getattr(nc, attr))   # This can be used if want to see all of the attributes
         okey=True
     except:
         okey=False
@@ -359,6 +360,7 @@ def main():
 
     os.chdir(path)
     for file in glob.glob("*.nc"):                 # Opens all that ends with .csv in the path folder one by one
+        #print(file)
         (sl_variables,Header_dict,station,okey)=open_ncfiles(file,Header_dict)        # Function 3
         #print(Header_dict)
         #open_ncfiles ,updates header, changes date+time strings into datetime object and puts it
@@ -368,7 +370,7 @@ def main():
             exit()
 
         #print(lat,lon,times[0:10],slev[0:10],qual[0:10])
-        process_file(file,sl_variables,Header_dict,header_order,station) # Function 5
+        #process_file(file,sl_variables,Header_dict,header_order,station) # Function 5
         # process_file, checks the order, adds missing, counts some header info, writes gl-files
 
 

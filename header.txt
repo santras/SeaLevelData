@@ -1,0 +1,39 @@
+##!/usr/bin/env python
+# coding: utf-8
+
+# Header-kent�t, jotka lis�t��n kaikkiin tiedostoihin.
+# Kent�n nimen maksimipituus 20 merkki�.
+#
+# Kent�t tulevat tiedostoihin siin� j�rjestyksess�, miss� ne ovat
+# t�ss� tiedostossa.
+#
+# Kent�n oletusarvon voi asettaa t�ss� kaksoispisteen avulla, esimerkiksi:
+# Time system : UTC
+#
+# Kent�n oletusarvoa k�ytet��n datatiedostoissa, jollei sit� erikseen
+# m��ritell�. Datatiedoston kirjoittava ohjelma tulostaa varoituksen, jos
+# jollekin kent�lle ei ole annettu mit��n arvoa.
+#
+# Arvon pituutta ei ole rajattu (loppuu rivinvaihtoon)
+#
+#2345678901234567890
+####################
+Station
+Source
+Longitude
+Latitude
+Unit : centimeters
+Interval
+Start time
+End time
+Time system : UTC
+Datum
+Total observations
+Missing values
+Note
+Quality flag 1 : Data known to be good
+Quality flag 2 : Interpolated data
+Quality flag 3 : Unknown / source does not specify
+Quality flag 7 : Average with some missing values
+Quality flag 8 : Average with over 50% missing values
+Quality flag 9 : Gap in data
