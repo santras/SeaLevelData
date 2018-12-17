@@ -20,17 +20,16 @@ output_path= path +"../Tests//"      # than the .nc data file in this directory
 time_difference=60                      # Time difference in minutes between measurements
 
 # Function 1
-def open_rfile(file_name):
-    # Called by: get_headers / Function 2,Calls: -
+def open_txtfile(file_name):
+    # Calls: -
     #Opens a readable file and reads it
     try:
         file=open(file_name,'r')
         data=file.readlines()
-        #print(len(data))
         file.close()
         ok=True
-    except:
-        print("File {} couldn't be opened in open_rfile/Function1.".format(file_name))   # Returns empty data variable and False if not successfull
+    except: # Returns empty data variable and False if not successfull
+        print("File {} couldn't be opened in open_txtfile/Function 1.".format(file_name))
         ok=False
         data=[]
         return data,ok
@@ -39,10 +38,9 @@ def open_rfile(file_name):
 
 # Function 2
 def get_headers():
-    # Called by: Main , Calls: open_rfile/Function 1
+    # Calls: open_txtfile/Function 1
     # Reads a headerfile that contains the header titles and the order they should be in in the final header
-    # Almost completely like in tgtools
-    (headerfile,opened)=open_rfile(headerfilename)  # Function 1
+    (headerfile,opened)=open_txtfile(headerfilename)  # Function 1
     if not opened:
         print('Failed to generate headers, need a headerfile for model in get_headers/Function2.')
         exit('Ending program')
@@ -62,71 +60,177 @@ def get_headers():
     return Headers,order
 
 # Function 3
-def open_ncfiles(file,header):
-    data = Dataset(file)
-    #Called by: Main , Calls:update_header
-    # Opens CMEMS .nc files, then reads the data and maybe updates the header, Checks the sea level data and
+def open_ncfiles(file):
+    #Calls:update_header
+    # Opens CMEMS Baltic Tide Gauge .nc files, then reads the data and updates the header, Checks the sea level data and
     # marks smaller than -9999 or bigger than 9999 as nan value, then changes sea level from meters to cm.
-    #print(data.dimensions.keys())
-    #print(data.dimensions['TIME'])
-    #print(data.variables.keys())
-    #print(data.variables['TIME'])
+
+
+
+    nc_data = Dataset(file, 'r')
+    #print_ncattr(nc_data)                          ######## Here for printing nc file attributes and variables
 
     try:
-        nc = Dataset(file, 'r')
-        lat = nc.variables['LATITUDE'][0]
-        lon = nc.variables['LONGITUDE'][0]
-        t = nc.variables['TIME']
-        s = nc.variables['SLEV'][:]
-        q = nc.variables['SLEV_QC'][:, 0]
-        #print(nc.variables['Time'])
-        for attr in nc.ncattrs():
-            if attr=="sea_level_datum":
-                datum=(getattr(nc,attr))
-            elif attr=="platform_code":
-                station=(getattr(nc,attr))
-                #print(datum)
-                #print(station)
-                #print (attr, '=', getattr(nc, attr))   # This can be used if want to see all of the attributes
+
+        lat = nc_data.variables['LATITUDE'][0]      # Only takes the first ones since tide gauge is stationary
+        lon = nc_data.variables['LONGITUDE'][0]
+        time = (nc_data.variables['TIME'][:])
+        sealev = nc_data.variables['SLEV'][:]                # For sea level variables
+        sealev_meta =nc_data.variables["SLEV"]                   # For sea level variable meta
+        qual_f = nc_data.variables['SLEV_QC'][:, 0]               # Sea level quality flag
+
+
+
+
+        station = ""
+
+        for attr in nc_data.ncattrs():                           # Getting station name
+            if attr == "platform_code":
+                station = (getattr(nc_data,attr))
+
+
+
+        # Getting datum from  sea level variables inner attribute
+        datum=sealev_meta.sea_level_datum                                     # Datum here!
+
+        # Checking that units are in meters
+        if sealev_meta.units != "m":
+            print("Warning in file", file, "unit is not in meter.")
+
         okey=True
+        nc_data.close()
     except:
-        okey=False
-        return [], header,"", okey
+        return False, [], [], [],"","","",""
 
+    return okey,time, sealev,qual_f,lat,lon, station,datum
 
+    #print(t[0:10],type(t))
     time_zero = datetime.datetime(1950, 1, 1, 0, 0, 0)  # Dates are given as days since 1.1.1950
     times = []
-    for index in range(0, len(t)):
-        times.append(datetime.timedelta(days=t[index]) + time_zero)
-        # print
-        # lat, lon
-    variables=[]
 
+    for index in range(0, len(t)):
+        times.append(datetime.timedelta(days=float(t[index])) + time_zero)
+
+    #
     if (not len(s)==len(t)) and (not len(s)==len(q)):           # Extra test, variables need to be of same length
         print("Something wrong possibly in the NC-files, variables are not of same length")
         exit()
+
     if len(times)>2:
         t_diff=(times[1]-times[0])
-    header = update_header(header, station, lat, lon, datum,t_diff)  # Function 4
+    else:
+        print("File too short",file)
+        return [], header,"", okey
 
-    #print(s)
-    #s_s=0
-    for ind in range(len(s)):                   # Checks that sea level value ok [-9999,9999] and changes it to cm
-        if not len(s[ind])==1:
-            print("Problem with opening NC-file in function open_nc, multiple values for a single timestamp:",s[ind])
-            #s_s=s_s+1
-        elif s[ind]<9999 and s[ind]>-9999:
-            variables.append([times[ind],(s[ind][0])*100,int(q[ind])])
-            #print(times[ind],s[ind],s[ind]*100)
-        else:
+    #print(type(s))
+
+    count_dummy=0
+    count_dummy2=0
+    count_dummy3=0
+
+    variables=[]
+
+    #####PROBLEMS HERE with Masked Arrays and strange empty list (len=1) that are sometimes there instead of value marking
+
+    for ind in range(len(s)):                   # Checks that sea level value ok and changes it to cm  #
+
+
+        if str(s[ind][0]) in ["nan","NAN", "NaN", "", " ", "-", "--"]:
+            count_dummy=count_dummy+1
             variables.append([times[ind],np.nan,9])
-            # here append 9 to flag
-    #print("Problems:",s_s)
+        elif float(s[ind]) == -999.0:                             ## This is what missing measurement should be
+            count_dummy2 = count_dummy2 + 1
+            variables.append([times[ind], np.nan, 9])
+        else:
+            variables.append([times[ind], (float(s[ind])) * 100, int(q[ind])])  # CHANGE FROM CM TO METER
+            count_dummy3=count_dummy3+1
+
+    #check_data()
+
+    #print(len(s),count_dummy,count_dummy2, count_dummy3)
+    header = update_header(header, station, lat, lon, datum, t_diff,times[0],times[-1],len(variables),
+                           count_dummy+count_dummy2)                                            # Function 4
+
+
     return variables, header,station,okey
 
 
+def print_ncattr(nc):
+
+    # print(nc.data_model)                          # Type of nc file
+    nc_keys=(nc.dimensions.keys())
+    print(nc_keys)
+
+
+    for key in nc_keys:
+        try:
+            print(nc.dimensions[key])
+            print(nc.variables[key])
+        except:
+            print("Couldn't print variable info on key ",key)
+
+    # For printing other needed variables
+    print("................................................................")
+    #print(nc.variables)
+    print(nc.variables["SLEV"])
+    print(nc.variables["SLEV_QC"])
+
+    # For printing attributes
+    print("................................................................")
+    for attr in nc.ncattrs():
+        #print (attr, '=', getattr(nc, attr))                # to print all attributes
+
+        #if attr == "sea_level_datum":                        # no longer global attribute
+        #    print(getattr(nc,attr) )
+
+        if attr == "platform_code":
+            print("station ",getattr(nc, attr))
+
+        elif attr == "source":
+            print("source", getattr(nc, attr))
+
+        elif attr == "area":
+            print("area", getattr(nc, attr))
+
+    return
+
+def change_qualflags(qual):
+
+    count_dummy1 = 0
+    count_dummy2 = 0
+    count_dummy3 = 0
+    count_dummy4 = 0
+    counting_again_dummy =0
+
+    for index in range(len(qual)):
+        if qual[index] in [0,2,6]: # if original flaq is 0 (no qc performed), 2 (probably good data) or 6 (not used) -> new flaq 3 (unknown)
+            qual[index]=3
+            count_dummy1=count_dummy1+1
+        elif qual[index] in [3,4,5]:  # if original flag is 3 (bad data, possibly correctable) 4 ( bad data) or 5 (value changed) new flaq is 0 bad data
+            qual[index]=0
+            count_dummy2 = count_dummy2 + 1
+            if qual[index] in [3,4]:
+                counting_again_dummy=counting_again_dummy+1
+        elif qual[index] == 7: # if original flag is 7 (nominal value) new flaq is 9 missing value
+            qual[index] = 9
+            count_dummy3 = count_dummy3 + 1
+        elif qual[index] == 8: #if original flag is 8 (interpolated value) new flaq is 2 interpolated value
+            qual[index] = 2
+            count_dummy4 = count_dummy4 + 1
+        # 1 (good data) remains 1 (known to be good) and 9 (missing value) remains 9 (gap in data)
+
+    print(count_dummy1,count_dummy2,count_dummy3,count_dummy4,counting_again_dummy)
+    count_dummy=count_dummy1+count_dummy2+count_dummy3+count_dummy4
+
+    return qual, count_dummy
+
+def check_nsfile():
+
+    return
+
+
 # Function 4
-def update_header(Headers, stationname, latitude, longitude,datum,time_dif):
+def update_header(Headers, stationname, latitude, longitude,datum,time_dif,starttime, endtime,total,missing):
     #Called by: open_ncfiles/Function3,  Calls:-
     # Updates header info
     # like in tgtools
@@ -136,6 +240,10 @@ def update_header(Headers, stationname, latitude, longitude,datum,time_dif):
     Headers["Station"] = stationname
     Headers["Longitude"] = longitude
     Headers["Latitude"] = latitude
+    Headers["Start time"] = starttime
+    Headers["End time"] = endtime
+    Headers["Total observations"] = str(total)
+    Headers["Missing values"] = str(missing)
     return Headers
 
 # Function 5
@@ -153,10 +261,9 @@ def process_file(filename,sl_variables,Headers,order,station):
         os.makedirs(output_path, exist_ok=True)
 
     (sl_variables, missing, tot_values, start, end)=check_data(filename,sl_variables)   # Function 6
-    #print(Headers)
-    #print(output_file)
-    Headers_filled=fill_headers(Headers,missing,tot_values,start,end)               # Function 8
-    write_output(Headers_filled,sl_variables,order,output_file)                             # Function 9
+
+
+    write_output(Headers,sl_variables,order,output_file)                             # Function 9
 
 #Function 6
 def check_data(name,sl_variables):
@@ -172,60 +279,6 @@ def check_data(name,sl_variables):
         print("File "+name+" is not in order or entries are missing, ordering.")
         sl_variables=sorted(sl_variables)                           # And timestamps can be sorted..
 
-    missing=0
-    nans=0
-    counting_sev=0
-    counting_bad=0
-    counting_maybe=0
-    counting_strange=0
-    counting_shouldnt=0
-    for index in range(len(sl_variables)):              # Missing= either 9 as a quality flag or nan as the value
-        if sl_variables[index][2]==9:                   # old flag 3,4,7,9 -> 9 (missing)
-            missing = missing + 1                       # value=nan
-            sl_variables[index][1] = np.nan
-        elif np.isnan(sl_variables[index][1]):
-            sl_variables[index][2] = 9
-            nans=nans+1
-            missing = missing + 1
-        elif sl_variables[index][2]=="7":
-            sl_variables[index][2] = 9
-            counting_sev=counting_sev+1
-            missing = missing + 1
-            sl_variables[index][1]=np.nan
-        elif sl_variables[index][2]==4 or sl_variables[index][2]==3:
-            counting_bad=counting_bad+1
-            missing = missing + 1
-            sl_variables[index][1]=np.nan
-            sl_variables[index][2] = 9
-
-        elif sl_variables[index][2]==0:                 # old flag 0,2,6,5 -> 3 (unknown)
-            sl_variables[index][2]=3
-        elif sl_variables[index][2]==2:
-            counting_maybe = counting_maybe + 1
-            sl_variables[index][2] = 3
-        elif sl_variables[index][2]==6:
-            counting_strange=counting_strange+1                 # old flag 1 =1
-            sl_variables[index][2] = 3
-        elif sl_variables[index][2]==5:
-            counting_strange=counting_strange+1
-            sl_variables[index][2] = 3
-
-        elif sl_variables[index][2]==8:                         # old flag 8-> 2
-            sl_variables[index][2] = 2
-        elif sl_variables[index][2]==1:
-            a=1
-        else:
-            counting_shouldnt=counting_shouldnt+1
-
-
-    #print("Qual flaq Gul=Y",counting_y)
-    #print(missing)
-    #print("nans",nans)
-    print("nominal values changed to nan",counting_sev)
-    print("bad values changed to nan", counting_bad)
-    print("counting maybe okey", counting_maybe)
-    print("counting not used or changed", counting_strange)
-    print("counting flags that don't mach", counting_shouldnt)
 
     transposed = []                                     # Start date and end date
     for i in range(3):
@@ -258,21 +311,6 @@ def check_listorder(dates,diff,current_ind=1):
     return ok, inds
 
 
-
-
-
-
-
-def fill_headers(Headers,missing,total,starttime,endtime):
-    # Called by: process_file /Function 4 , Calls: -
-    # Fills headers
-    # Almost completely like in tgtools
-    Headers["Start time"] = starttime
-    Headers["End time"] = endtime
-    Headers["Total observations"] = str(total)
-    Headers["Missing values"] = str(missing)
-
-    return Headers
 
 
 def write_output(HeaderDict, sl_variables, order, outputfile):
@@ -354,20 +392,21 @@ def write_output(HeaderDict, sl_variables, order, outputfile):
 
 
 def main():
-    # Called by: -, Calls: get_headers/Function2, open_ncfiles/Function 3, process_file/Function 4
+    # Calls: get_headers/Function2, open_ncfiles/Function 3, process_file/Function 4
     # Use: See readme file
-    (Header_dict,header_order)=get_headers()        # Function 2, gettin header model
+    (Header_dict,header_order)=get_headers()        # Function 2, getting header model
 
     os.chdir(path)
-    for file in glob.glob("*.nc"):                 # Opens all that ends with .csv in the path folder one by one
-        #print(file)
-        (sl_variables,Header_dict,station,okey)=open_ncfiles(file,Header_dict)        # Function 3
-        #print(Header_dict)
-        #open_ncfiles ,updates header, changes date+time strings into datetime object and puts it
-        # with the rest of the data as sl_variable, changes sealevel measurements from m to cm
+
+    for file in glob.glob("*Aarhus.nc"):                 # Opens all that ends with .nc files in the path folder one by one
+
+        (okey,time,sealev,qual_f,lat, lon, station, datum)=open_ncfiles(file)        # Function 3, opens nc file
+
         if not okey:
-            print("Something went wrong opening nc-file",file,"exiting program.")
-            exit()
+            print("Something went wrong opening nc-file",file, "Coudn't convert to txt file.")
+        else:
+            qual_f,count=change_qualflags(qual_f)
+            print(file, " had quality flag count of",count," other than 1 good data or 9 missing data.")
 
         #print(lat,lon,times[0:10],slev[0:10],qual[0:10])
         #process_file(file,sl_variables,Header_dict,header_order,station) # Function 5
