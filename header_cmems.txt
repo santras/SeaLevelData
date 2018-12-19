@@ -20,7 +20,7 @@
 #
 ####################
 Station
-Source
+Source : CMEMS
 Longitude
 Latitude
 Unit
@@ -30,11 +30,14 @@ End time
 Time system : UTC
 Datum
 Total observations
-Missing values
-Note
-Quality flag 1 : Data known to be good
-Quality flag 2 : Interpolated data
-Quality flag 3 : Unknown / source does not specify
-Quality flag 7 : Average with some missing values
-Quality flag 8 : Average with over 50% missing values
-Quality flag 9 : Gap in data
+Quality flags CMEMS: /count
+0 No QC performed
+1 Good
+2 Probably good
+3 Bad pos. corr.
+4 Bad Data
+5 Value changed
+6 Not used
+7 Nominal value
+8 Interpolated
+9 Missing value
