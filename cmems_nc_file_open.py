@@ -6,23 +6,19 @@ import os, glob
 from netCDF4 import Dataset
 
 
-# The purpose of this code is to change Copernicus MEMS Data to GL-format
-# Test that all date in order
-# Makes header from a file that contains the header titles and the order, location of the file header.txt can be
+# The purpose of this code is to change Copernicus CMEMS Tide Gauge Sea Level Data from NetCDF files into txt-files
+# Makes header from a file that contains the header titles and the order, location of the file header.txt / header_cmems.txt can be
 # changed from the beginning of this file
-# Writes output file in the "gl"-format.
 
-# TESTING commit again again
-GLstyle= False                            # True if want to do gl-format for output
-headerfilename=('header_cmems.txt')      # Header titles as a txt file, should be in the working directory
-headerfilename2=('header.txt')           # GL (style header file)
-path="../TGData//"                      # Path for the original data file folder, best not to have anything else
-output_path= path +"../TGData_txt//"      # than the .nc data file in this directory
-time_difference=60                      # Time difference in minutes between measurements
 
-# Function 1
+GLstyle= False                             # True if want to do gl-format for output
+headerfilename=('header_cmems.txt')       # Path to  header titles as a txt file
+headerfilename2=('header_gl.txt')         # Path to GL (style header file)
+path="../TGData//"                        # Path for the original data file folder, script goes throuh all .nc files in the folder
+output_path= path +"../TGData_txt//"      # Outputpath
+time_difference = 60                      # Expected time difference between measurements, should be 6o min.
+
 def open_txtfile(file_name):
-    # Calls: -
     #Opens a readable file and reads it
     try:
         file=open(file_name,'r')
@@ -37,11 +33,10 @@ def open_txtfile(file_name):
 
     return data, ok
 
-# Function 2
+
 def get_headers(headfile):
-    # Calls: open_txtfile/Function 1
     # Reads a headerfile that contains the header titles and the order they should be in in the final header
-    (headerfile,opened)=open_txtfile(headfile)  # Function 1
+    (headerfile,opened)=open_txtfile(headfile)
     if not opened:
         print('Failed to generate headers, need a headerfile for model in get_headers/Function2.')
         exit('Ending program')
@@ -60,14 +55,9 @@ def get_headers(headfile):
             order.append(key)
     return Headers,order
 
-# Function 3
+
 def open_ncfiles(file):
-    #Calls:update_header
-    # Opens CMEMS Baltic Tide Gauge .nc files, then reads the data and updates the header, Checks the sea level data and
-    # marks smaller than -9999 or bigger than 9999 as nan value, then changes sea level from meters to cm.
-
-
-
+    # Opens CMEMS Baltic Tide Gauge .nc files, then reads the data and updates the header
     nc_data = Dataset(file, 'r')
     #print_ncattr(nc_data)                          ######## Here for printing nc file attributes and variables
 
@@ -89,10 +79,10 @@ def open_ncfiles(file):
             if attr == "platform_code":
                 station = (getattr(nc_data,attr))
 
-
-
         # Getting datum from  sea level variables inner attribute
         datum=sealev_meta.sea_level_datum                                     # Datum here!
+        if datum=="MSL":
+            print("Station: ",station,"is in MSL datum, need spesific change to evrf.")
         units=str(sealev_meta.units)
         t_diff=int(sealev_meta.time_sampling)
 
@@ -101,14 +91,29 @@ def open_ncfiles(file):
     except:
         return False, [], [], [],"","","","","",""
 
-
-
     #print(t[0:10],type(t))
     time_zero = datetime.datetime(1950, 1, 1, 0, 0, 0)  # Dates are given as days since 1.1.1950
     times = []
 
+    file_good_timeflag=True
+
     for index in range(0, len(time)):
-        times.append(datetime.timedelta(days=float(time[index])) + time_zero)
+        if not np.isnan(float(time[index])):
+            times.append(datetime.timedelta(days=float(time[index])) + time_zero)
+        else:                                                                                # For trouble shooting Malmo
+            file_good_timeflag=False
+        #    print(index, (time[index]),sealev[index], qual_f[index])
+
+    if not file_good_timeflag:
+        print("Problems with missing time flags with station: ",station, ". Cutting file short.")
+        print(station,"Original length:",len(time),", new length:",len(times))
+        #print(len(times),len(sealev),len(qual_f))
+        if len(sealev)!=len(times):
+            sealev = sealev[0:len(times)]
+        if len(qual_f)!=len(times):
+            qual_f=qual_f[0:len(times)]
+
+        #print(len(times), len(sealev), len(qual_f))
 
     return okey, times, sealev, qual_f, lat, lon, station, datum, units, t_diff
 
@@ -153,8 +158,7 @@ def print_ncattr(nc):
     return
 
 def change_qualflags(qual):
-    # USE THIS ONLY IF NEEDED
-
+    # USE THIS ONLY IF NEEDED FOR GL TYPE quality flags
 
     for index in range(len(qual)):
         if qual[index] in [0,2,6]: # if original flaq is 0 (no qc performed), 2 (probably good data) or 6 (not used) -> new flaq 3 (unknown)
@@ -208,8 +212,8 @@ def prep_data(file,sealev_raw,qual):
             print("Weirdness in quality flag in  ", file, index, qual[index])
 
 
-    print("In file",file,":","Good data:", data_good," Missing Data:",missing," Bad Data:",bad_data," No QC:", no_qc, " Probably Good:",prob_good,
-        " Value Changed:", val_change, " Nominal Value: ", nominal, " Interpolated:", interpolated)
+    #print("In file",file,":","Good data:", data_good," Missing Data:",missing," Bad Data:",bad_data," No QC:", no_qc, " Probably Good:",prob_good,
+    #    " Value Changed:", val_change, " Nominal Value: ", nominal, " Interpolated:", interpolated)
 
     return sealev,missing
 
@@ -298,9 +302,7 @@ def check_nsfile(time, sealev, qual):
     return
 
 
-# Function 4
 def update_header(Headers, stationname, latitude, longitude,datum,time_dif,starttime, endtime,total,missing,units):
-    #Called by: open_ncfiles/Function3,  Calls:-
     # Updates header info
     # like in tgtools
     Headers["Source"] = "CMEMS"
@@ -323,9 +325,7 @@ def update_header(Headers, stationname, latitude, longitude,datum,time_dif,start
 
     return Headers
 
-# Function 5
 def write_file(filename,Headers,order, times,sealev,qual,station):
-    # Called by: Main, Calls: check_data/Function5, fill_headers/Function8, write_output/Function9
     # Makes an output folder if it doesen't exist and then calls in functions to check that data is in order
     # and creates needed variables for header, then it updates and orders the header and finally writes the output.
 
@@ -387,7 +387,6 @@ def write_file(filename,Headers,order, times,sealev,qual,station):
     file.close()
 
 
-#Function 6
 def check_order(file, dates):
 
     if dates != sorted(dates):
@@ -404,20 +403,20 @@ def check_order(file, dates):
 
 
 def main():
-    # Calls: get_headers/Function2, open_ncfiles/Function 3, process_file/Function 4
     # Use: See readme file
 
     headfile = headerfilename
     if GLstyle:
         headfile=headerfilename2
 
-    (Header_dict,header_order)=get_headers(headfile)        # Function 2, getting header model
+    (Header_dict,header_order)=get_headers(headfile)        #  getting header model
 
     os.chdir(path)
 
-    for file in glob.glob("*Aarhus.nc"):                 # Opens all that ends with .nc files in the path folder one by one
+    for file in glob.glob("*.nc"):                 # Opens all that ends with .nc files in the path folder one by one
 
-        (okey,time,sealev,qual_f,lat, lon, station, datum, units, t_diff)=open_ncfiles(file)        # Function 3, opens nc file
+        print(file)
+        (okey,time,sealev,qual_f,lat, lon, station, datum, units, t_diff)=open_ncfiles(file)        #opens nc file
 
 
         missing="not count"
@@ -426,7 +425,7 @@ def main():
         else:
 
             if GLstyle:
-                qual_f=change_qualflags(qual_f)
+                qual_f=change_qualflags(qual_f) # changes quality flags to gl format
                 (sealev, missing) = prep_data(file, sealev, qual_f)
             else:
                 (sealev, missing,Header_dict) = prep_data2(file, sealev, qual_f, Header_dict)
@@ -444,13 +443,10 @@ def main():
                 exit()
             Header_dict=update_header(Header_dict,station,lat,lon,datum,t_diff,time[0],time[-1],len(time),missing,units)
             write_file(file,Header_dict,header_order,time,sealev,qual_f,station)
+            print(station," done")
 
 
-            #check_nsfile(time,sealev,qual_f)
-
-        #print(lat,lon,times[0:10],slev[0:10],qual[0:10])
-        #process_file(file,sl_variables,Header_dict,header_order,station) # Function 5
-        # process_file, checks the order, adds missing, counts some header info, writes gl-files
+            # Missing code if sampling rate is wrong, or if order is wrong
 
 
 
