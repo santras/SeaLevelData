@@ -4,6 +4,7 @@ import os
 import datetime
 import numpy as np
 import os, glob
+import re
 import pandas as pd
 
 # The purpose of this code is to change SMHI Open Data to same txt format as the CMEMS data
@@ -150,12 +151,22 @@ def process_file(filename,sl_variables,Headers,station):
 
     station=station.strip()
 
-    if " " in station:
-        station1=(station.split(" ")[0]).capitalize()
-        station2 = (station.split(" ")[1]).capitalize()
-        station=station1+station2
+    if any(marker in station for marker in [" ","-"]):
+        stations=station.split()
+        okey_station=""
+        for ii in range(len(stations)):
+            if "_" in stations[ii]:
+                okey_station=okey_station+(stations[ii].split("_")[0].capitalize())
+                okey_station=okey_station+(stations[ii].split("_")[1].capitalize())
+
+            else:
+                okey_station=okey_station+(stations[ii].capitalize())
+
+        station=okey_station
+
     else:
         station=station.capitalize()
+
     station=station.replace(" ","")
     station=station.replace("ä","a")
     station = station.replace("ö", "o")
@@ -454,7 +465,7 @@ def main():
         write_output(header, sl_variables, header_order, output_file)
 
 
-        print(station, " done")
+        print(file, " done")
         # process_file, checks the order, adds missing, counts some header info, writes gl-files
     #(filenames,found)=open_rfile('filenames.txt')
     #if not found:
