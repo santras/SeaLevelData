@@ -454,7 +454,7 @@ def main():
         write_output(header, sl_variables, header_order, output_file)
 
 
-        print(file, " done")
+        print(station, " done")
         # process_file, checks the order, adds missing, counts some header info, writes gl-files
     #(filenames,found)=open_rfile('filenames.txt')
     #if not found:
