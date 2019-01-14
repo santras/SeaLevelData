@@ -329,9 +329,9 @@ def check_station(name):
         ind=10
     elif name=='Helsinki':
         ind=11
-    elif name=='Porvoo*':
+    elif name=='Porvoo':
         ind=12
-    elif name=='Hamina*':
+    elif name=='Hamina':
         ind=13
     else:
         print("Couldn't find station "+name)
@@ -426,7 +426,8 @@ def main():
 
 
     os.chdir(path)
-    for file in glob.glob("K*.txt"):                 # Opens all that ends with .txt in the path folder one by one
+    for file in glob.glob("*.txt"):                 # Opens all that ends with .txt in the path folder one by one
+        print(file," starting")
         country = ""
         if file not in stations:
             print(file," Coudn't be found in station list")
@@ -439,6 +440,7 @@ def main():
             (sl_variables, Headers, order,datum_old)=open_slfiles(file)
             #print(type(Headers))
             process_file(file,sl_variables,Headers,order,country,datum_old)
+            print(file,"finnished")
 
 
 
