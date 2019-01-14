@@ -16,8 +16,9 @@ station_country_list=('station_countries.txt')                # Stations by coun
 path="../TGData_txt//"                        # Path for the original data file folder, script goes throuh all .txt files in the folder
 output_path= path +"../TGData_EVRF2007_txt//"      # Outputpath
 datum_new="EVRF2007"                                                 # The new datum
+fin_change_table="/home/sanna/PycharmProjects/SeaLevelData/Fin_MSL_NN2000_chart_1931_2018.txt"
 
-# Change in cm according to evrs.bkg.bund.de
+# Changes in cm from https://evrs.bkg.bund.de/Subsites/EVRS/EN/Projects/HeightDatumRel/height-datum-rel.html
 #BHS77 /Kronstadt datum
 Estonia=19.0
 Latvia=15.0
@@ -210,6 +211,8 @@ def process_file(filename,sl_variables,Headers,order,country,datum_old):
 
     #print(sl_variables[0:5])
     sl_variables = change_to_evrf(sl_variables,country,datum_old,Headers,filename)
+    if sl_variables == []:
+        print("Something wrong with conversion, for file ",filename)
     #print(sl_variables[0:5])
 
     write_output(sl_variables,Headers,order,output_file)
@@ -217,7 +220,28 @@ def process_file(filename,sl_variables,Headers,order,country,datum_old):
 
 
 def change_to_evrf(sl_variables,country,datum,Headers,filename):
-    if datum=="BHS77":
+
+
+    if country == "Finland":
+        if datum == "msl" or datum == "MSL":
+            to_add = Datum_dict["NN2000"]
+
+            msl_nn2000 = get_fin_change_nn2000(sl_variables,filename)
+
+            update_header(Headers, datum_new)
+            new_variable = []
+            for ind in range(len(sl_variables)):
+                new_variable.append([sl_variables[ind][0], sl_variables[ind][1] + msl_nn2000[ind]+ to_add, sl_variables[ind][2]])
+
+            return (new_variable)
+
+        elif datum == "NN2000":
+            to_add = Datum_dict[datum]
+        else:
+            print("Can't find datum: ", datum, country, filename)
+            return []
+
+    elif datum=="BHS77":
         if country == "Estonia":
             to_add = Estonia
         elif country == "Latvia":
@@ -244,6 +268,75 @@ def change_to_evrf(sl_variables,country,datum,Headers,filename):
         new_variable.append([sl_variables[ind][0],sl_variables[ind][1]+to_add,sl_variables[ind][2]])
 
     return (new_variable)
+
+def get_fin_change_nn2000(sl_variable,filename):
+
+    # Opening change table
+    (changedata,okey)=open_txtfile(fin_change_table)
+    if not okey:
+        print("Coulnd't open file for Finnish msl conversions to NN2000")
+        return
+
+    #checking index from filename
+    index=check_station(filename)
+    if index == []:
+        print("Warning, coudn't change datum for, missing index for search",filename)
+
+    msl_to_nn2000=[]
+    aa=""
+
+    #print(changedata)
+    for ii in range (len(sl_variable)):
+        #print(sl_variable[ii][0].date().year) # the year
+        #print (changedata[(4+(int(sl_variable[ii][0].date().year)-1931))])                # the line    # year 1931 = line 1
+        year_= (sl_variable[ii][0].date().year)
+        line_ind= 1 + int(year_)-1931
+        line=changedata[line_ind]
+        splitline=line.split()
+        aa=(splitline[index+1])             # correct item  from chart
+        aa=((float(aa.strip()))*0.1)       # change to cm
+        msl_to_nn2000.append(aa)
+        #print(aa)
+
+    #print (msl_to_nn2000)
+    #print(len(msl_to_nn2000),len(sl_variable))
+    return msl_to_nn2000
+
+def check_station(name):
+    # Matching the names of the stations to the corresponding column in the file for the conversion
+    name=name[:-4].strip()
+    if name=='Kemi':
+        ind=0
+    elif name=='Oulu':
+        ind=1
+    elif name=='Raahe':
+        ind=2
+    elif name=='Pietarsaari':
+        ind=3
+    elif name=='Vaasa':
+        ind=4
+    elif name=='Kaskinen':
+        ind=5
+    elif name=='Pori' or name=='Mäntyluoto' or name=='Mantyluoto':
+        ind=6
+    elif name=='Rauma':
+        ind=7
+    elif name=='Turku':
+        ind=8
+    elif name=='Föglö' or name=='Foglo' or name=='Degerby' or name=='FÃ¶glÃ¶':
+        ind=9
+    elif name=='Hanko':
+        ind=10
+    elif name=='Helsinki':
+        ind=11
+    elif name=='Porvoo*':
+        ind=12
+    elif name=='Hamina*':
+        ind=13
+    else:
+        print("Couldn't find station "+name)
+        return []
+    return ind
 
 
 def write_output(sl_variables,Headers ,order, outputfile):
@@ -333,7 +426,7 @@ def main():
 
 
     os.chdir(path)
-    for file in glob.glob("*.txt"):                 # Opens all that ends with .txt in the path folder one by one
+    for file in glob.glob("K*.txt"):                 # Opens all that ends with .txt in the path folder one by one
         country = ""
         if file not in stations:
             print(file," Coudn't be found in station list")
@@ -346,7 +439,7 @@ def main():
             (sl_variables, Headers, order,datum_old)=open_slfiles(file)
             #print(type(Headers))
             process_file(file,sl_variables,Headers,order,country,datum_old)
-         #   process_file(file,sl_variables,Header_dict,header_order,station,country,datum) # Function 5
+
 
 
 
