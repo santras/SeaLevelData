@@ -10,7 +10,7 @@ from scipy import stats
 # The purpose of this code is to re-write the station-by-station sealevel files into day by day sealevel files to make the plotting faster
 
 path="/home/sanna/PycharmProjects/TGData_EVRF2007_txt"                            # Path for the original data file folder, best not to have anything else
-output_path= "../Daily_files/Test"        # than the .txt data file in this directory
+output_path= "../Daily_files/Test/"        # than the .txt data file in this directory
 time_period_start=datetime.datetime(2017,1,1,0,0)                    # As intergers, just easier   (YYYY,Month,Day,Hour,Min)
 time_period_end=datetime.datetime(2017,1,1,23,0)
 
@@ -31,7 +31,7 @@ def open_txtfile(file_name):
 
     return data, ok
 
-def get_data(start,end):
+def get_data(start):
     # # Finds data of correct day and writes it to a file
     okey=False
     file_count=0
@@ -39,7 +39,7 @@ def get_data(start,end):
 
     data_all=[]
 
-    for file in glob.glob("R*.txt"):                 # Opens all that ends with .txt in the path folder one by one
+    for file in glob.glob("*.txt"):                 # Opens all that ends with .txt in the path folder one by one
         (data,get_data_success)=open_txtfile(file)
         if not get_data_success:
             print("Warning, something wrong opening file", file)
@@ -57,7 +57,7 @@ def get_data(start,end):
 
         if not (start>e_date or start<s_date):   # To check that start date within time interval given
             #print("Data should be here",file,start,end,e_date,s_date)
-            (data_formatted,bad_station)=format_data(data,start, end)
+            (data_formatted,bad_station)=format_data(data,start)
             if not bad_station:
                 if data_formatted != []:
                     file_count = file_count + 1
@@ -67,25 +67,22 @@ def get_data(start,end):
                     #print("Data not found,empty", file)
             #else:
                 #print("Data not found,boolen",file)
-
         #else:
             #print(start,s_date,e_date)
 
-    #     #print(len(formatted_data))
-    #     if bad_station:
-    #         bad_station_count=bad_station_count+1
-    #     else:
-    #         for ind in range(len(formatted_data)):
-    #             data_all.append(formatted_data[ind])
-    #
-    # update_header(Header_dict,day,file_count,file_count-bad_station, nancount,len(data_all))
-    # day_string=(day.strftime("%Y_%m_%d"))
-    # write_output(data_all,Header_dict,order,day_string)
-    # if len(data_all)!=0:
-    #     okey=True
+        #print(len(formatted_data))
+        if retrieve_okey:
+            for ind in range(len(data_formatted)):
+                #print(data_formatted)
+                data_all.append(data_formatted[ind])
+
+    if len(data_all)!=0:
+        okey=True
+        write_output(data_all,start.date())
+
     return okey
 
-def format_data(data, start, end):
+def format_data(data, start):
     variables=[]
 
     station=""
@@ -112,14 +109,13 @@ def format_data(data, start, end):
                 datum = splitline[1].strip()
 
             elif splitline[0] == "Time":
-                print(datum)
                 time_sys = splitline[2].strip()
 
 
     #print(station,lon,lat,time_sys,datum)
     # Some checks
     if not (data[23][0]=="-"):    # juts an extra check that header size is normal    #for cmems, 21 for gl
-        print("Header size of file is not expected in file: ",file)
+        print("Header size of file is not expected")
         bad_station=True
         return [], bad_station
     elif (datum != "EVRF07" and datum!="EVRF2007"):
@@ -151,7 +147,7 @@ def format_data(data, start, end):
                                     int(splittime[1])))
 
 
-            if (thisdate>=start and thisdate<=end):
+            if (thisdate>=start and thisdate<(start+datetime.timedelta(days=1))):
                 variables.append([thisdate,station,lat,lon,float(slev[ind]),int(qual[ind])])
                 if (np.isnan(float(slev[ind])) or int(qual[ind]))==9:
                     nancount=nancount+1
@@ -165,61 +161,11 @@ def format_data(data, start, end):
 
         return variables, bad_station
 
-# Function 9
-def write_output(sl_variables,HeaderDict, order, time_marker):
-    # Called by: process_file /Function 4  , Calls: -
+
+def write_output(sl_variables,time_marker):
     # Writes the output
-    # Very much like in tgtools
 
-    output_file=output_path+time_marker+".txt"
-    if len(HeaderDict.keys()) == 0:
-        # Check for empty header, warn if so.
-        print ("! Warning: empty header")
-    Header = []
-
-    for key in order:
-        try:
-            Header.append([key, HeaderDict[key]])
-        except KeyError:
-            Header.append([key, ""])
-
-    # The header writing code, contains various checks.
-    output=[]
-    for line in Header:
-        # Loop through all header lines
-        if not len(line) ==  2:
-            # Header line should only have to elements (key and value)
-            print ("! Warning: broken header line:", line)
-        else:
-            # If there's nothing in either position of the header,
- 			# replace it with an empty string.
-            if line[0] == None:
-                line[0] = ""
-            if line[1] == None:
-                line[1] = ""
-            # Warn if header key or value are empty.
-            #if line[0] == "" :
-            #    print ("! Warning: nameless header field: ", line)
-            #if line[1] == "" :
-             #   print ("! Warning: valueless header field: ", line)
-            # Finally write header line. Limit first field to 20 characters.
-            if len(line[0]) > 20 :
-                print ('! Warning: header name too long: "%s". Cropped to 20 characters.' % (line[0]))
-
-            output.append("%-20s%s\n" % (line[0][0:20], line[1]))
-
-    try:
-        file = open(output_file, 'w')
-        # print(output_file)
-    except:
-        print("Couldn't open file to print into.")
-
-
-    # Writing headers
-    file.writelines(output)
-    file.write('\n')
-    file.write('--------------------------------------------------------------\n')
-
+    output_file=output_path+time_marker.strftime("%d_%m_%Y")+".txt"
 
     # Writing values
     date=[]
@@ -229,6 +175,8 @@ def write_output(sl_variables,HeaderDict, order, time_marker):
     stat=[]
     lat=[]
     lon=[]
+
+
 
     for ii in range(len(sl_variables)):
         date.append((sl_variables[ii][0]).strftime("%Y-%m-%d"))
@@ -242,6 +190,7 @@ def write_output(sl_variables,HeaderDict, order, time_marker):
     for ind in range(len(date)):
         prints.append("{}\t{}\t{:12}\t{:3.4}\t{:3.4}\t{:6.4}\t{:3}\n".format(date[ind],time[ind],stat[ind],lat[ind],lon[ind],slev[ind],qual[ind]))
 
+    file=open(output_file,'w')
     try:
         for ind in range(len(sl_variables)):
             file.write(prints[ind])
@@ -274,27 +223,22 @@ def main():
     os.chdir(path)
 
 
+    count=0
 
     while end_time>start_time:
 
-        (data_found)=get_data(start_time, end_time)
-
+        data_found=get_data(start_time)
         if not data_found:
             print("Warning, Couldn't find data on ", start_time)
+
         count=count+1
+        print("Day count of search & write ",count)
         start_time=start_time+datetime.timedelta(days=1)
-        #print(start_time)
-
-    #print(count)
 
 
-        #(sl_variables,Header_dict,station,okey)=open_glfiles(file,Header_dict)        # Function 3
-        #open_files ,updates header, changes date+time strings into datetime object and puts it
-        # with the rest of the data as sl_variable
-        #if not okey:
-        #    print("Something went wrong opening file",file,"exiting program.")
-        #    exit()
-        #process_file(file,sl_variables,Header_dict,header_order,station) # Function 5
+
+
+
 
 
 
