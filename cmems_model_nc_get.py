@@ -381,7 +381,7 @@ def main():
             else:
                 month_s=str(month)+"/"
             write_path=year_s+month_s
-            #print(write_path)
+            print(write_path)
             os.chdir(in_path+year_s+month_s)
             for file in glob.glob("*.nc"):                 # Opens all that ends with .nc files in the path folder one by one
                 file_number=file_number+1
