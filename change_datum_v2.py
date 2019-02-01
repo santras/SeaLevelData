@@ -162,6 +162,7 @@ def open_slfiles(file):
         (Headers,order,datum_old)=get_headers(data[0:22])  ### Needs to be 19 ?for gl-data type
         #print(type(Headers))
 
+    print("Original file ",file," length", len(data[24:]))
 
     date=[]
     time=[]
@@ -180,8 +181,8 @@ def open_slfiles(file):
         splittime=((time[ind]).split(":"))
         thisdate=(datetime.datetime(int(splitdate[0]),int(splitdate[1]),int(splitdate[2]),int(splittime[0]),
                                      int(splittime[1])))
-        if splittime[1] == "00":
-            variables.append([thisdate,slev[ind],qual[ind]])
+
+        variables.append([thisdate,slev[ind],qual[ind]])
         #else                                                               # Some files were not hourly even if metadata said so
         #     print(thisdate)
 
@@ -390,6 +391,7 @@ def write_output(sl_variables,Headers ,order, outputfile):
     time=[]
     slev=[]
     qual=[]
+    print("Writing length",len(sl_variables))
 
     for ii in range(len(sl_variables)):
         date.append((sl_variables[ii][0]).strftime("%Y-%m-%d"))

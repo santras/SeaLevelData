@@ -334,7 +334,7 @@ def write_file(write_lines, filename,write_path):
     output_file=output_path+write_path+(filename.replace(" ", ""))[:-3]+".txt"                   # HERE OUTPUTFILENAME
 
 
-    print("output",output_file)
+    #print("output",output_file)
     if not os.path.exists(output_path+write_path):                             # Making the output folder if needed
         os.makedirs(output_path+write_path, exist_ok=True)
 
