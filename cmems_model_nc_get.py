@@ -356,7 +356,6 @@ def write_file(write_lines, filename,write_path):
 
 def main():
 
-
     (data,okey)=open_txtfile(interest_points)
     if not okey:
         print("Not finding a file of interest points. ",interest_points)
