@@ -12,15 +12,9 @@ from geopy import distance as gd
 
 
 
-GLstyle= False                             # True if want to do gl-format for output
-headerfilename=('header_cmems.txt')       # Path to  header titles as a txt file
-headerfilename2=('header_gl.txt')         # Path to GL (style header file)
 interest_points=("/home/sanna/PycharmProjects/ModelData/NorthernBaltic_Points_of_Interest.txt")
-path="/home/sanna/PycharmProjects/Tests"                        # Path for the original data file folder, script goes throuh all .nc files in the folder
-output_path= path +"../ModelData/Locations//"      # Outputpath
-time_difference = 60                      # Expected time difference between measurements, should be 6o min.
-testlat=60.0
-testlon=26.6
+in_path="/home/sanna/PycharmProjects/ModelData/my.cmems-du.eu/Core/BALTICSEA_REANALYSIS_PHY_003_011/dataset-reanalysis-nemo-surface/"     # Path for the original data file folder, script goes throuh all .nc files in the folder
+output_path= "/home/sanna/PycharmProjects/ModelData/Locations/"      # Outputpath
 
 def open_txtfile(file_name):
     #Opens a readable file and reads it
@@ -38,26 +32,6 @@ def open_txtfile(file_name):
     return data, ok
 
 
-def get_headers(headfile):
-    # Reads a headerfile that contains the header titles and the order they should be in in the final header
-    (headerfile,opened)=open_txtfile(headfile)
-    if not opened:
-        print('Failed to generate headers, need a headerfile for model in get_headers/Function2.')
-        exit('Ending program')
-    Headers = {}
-    order=[]
-    for line in headerfile:                 # Reads the lines of the file into a dictionary
-        if not (line.strip() == "" or line.strip()[0] == "#"):
-            if ":" in line:                     # Some unchanging variables are saved in into the dictionary from the headerfile
-                splitline = line.split(":")
-                key = splitline[0].strip()
-                value = splitline[1].strip()
-            else:
-                key = line.strip()
-                value = ""
-            Headers[key] = value
-            order.append(key)
-    return Headers,order
 
 
 def roundTime(dt=None, roundTo=60):
@@ -180,6 +154,7 @@ def get_grid(file,p_names,p_lat,p_lon):     # p_lat, p_lon = interest point coor
 
     #print(match_indexes)
 
+
     return match_indexes
 
 
@@ -278,6 +253,8 @@ def open_ncfiles(file,p_names,p_lat,p_lon,grid_matches):
     lon = (nc_data.variables['longitude'])
     #print(model_grid_lon.shape)
     sealev = nc_data.variables['sla'][:]
+    #print(nc_data.variables["sla"])
+
     #print(sealev[0][(lat_gridmatch[0])][(lon_gridmatch[0])])
     #print(len(p_names),len(lon_gridmatch))
 
@@ -292,28 +269,31 @@ def open_ncfiles(file,p_names,p_lat,p_lon,grid_matches):
     latitude = []
     longitude = []
     #print(sealev.shape)
-    print(len(time_datenum))
-    
-    for name in p_names:
+    #print(len(time_datenum))
+    print_values = []
+    #print("p_names",p_names)
+    #print(len(p_names))
+    #for ii in range(len(grid_matches)):
+    #    print("g_matches",p_names[ii],grid_matches[ii][0])
+    #print(p_lat)
+
+    #print(len(grid_matches))
+    for ii in range (len(p_names)):
         for index in range(len(grid_matches)):
-            if name == grid_matches[index][0]:         # the right row of grid_matches
+            if p_names[ii] == grid_matches[index][0]:         # the right row of grid_matches
+               # print(p_names[ii])
                 lat_ind = grid_matches[index][1]
                 lon_ind = grid_matches[index][2]
-                latitude.append( lat[lat_ind] )
-                longitude.append(lon[lon_ind] )
+                latitude = ( lat[lat_ind] )
+                longitude = (lon[lon_ind] )
 
                 for tt in range(0,24):
-                    all_sealevels.append(sealev[tt][lat_ind][lon_ind])
+                    sealevel=(float(sealev[tt][lat_ind][lon_ind]))*100  ## changing to cm
+                    print_values.append("{:16}\t{}\t{:10.6}\t{:10.6}\t{:10.6}\t{:10.6}\t{:10.6}\n".format(p_names[ii],time_datenum[tt],p_lat[ii],p_lon[ii],sealevel,latitude,longitude))
 
-
-    print_values=[]
-
-    for ind in range(len(p_names)):
-        for tt in range(0,24):
-            print_values.append("{:20}\t\{:15}t{:10.6}\t{:10.6}\t{:10.6}\n".format(p_names[ind],time_datenum[tt],p_lat[ind],p_lon[ind],all_sealevels[tt]),latitude[ind],longitude[ind])
-
-
-    return
+    #for ii in range(len(print_values)):
+     #   print(print_values[ii])
+    return print_values
 
 def print_ncattr(nc):
 
@@ -342,146 +322,30 @@ def print_ncattr(nc):
     # print("................................................................")
     #for attr in nc.ncattrs():
      #   print (attr, '=', getattr(nc, attr))                # to print all attributes
-    #
-    #     #if attr == "sea_level_datum":                        # no longer global attribute
-    #     #    print(getattr(nc,attr) )
-    #
-    #     if attr == "platform_code":
-    #         print("station ",getattr(nc, attr))
-    #
-    #     elif attr == "source":
-    #         print("source", getattr(nc, attr))
-    #
-    #     elif attr == "area":
-    #         print("area", getattr(nc, attr))
-    #
-    # return
-
-def change_qualflags(qual):
-    # USE THIS ONLY IF NEEDED FOR GL TYPE quality flags
-
-    for index in range(len(qual)):
-        if qual[index] in [0,2,6]: # if original flaq is 0 (no qc performed), 2 (probably good data) or 6 (not used) -> new flaq 3 (unknown)
-            qual[index]=3
-        elif qual[index] in [3,4,5,7]:  # if original flag is 3 (bad data, possibly correctable) 4 ( bad data), 5 (value changed) or 7 (nominal value) -> new flaq is 9 missing
-            qual[index]=9
-        elif qual[index] == 8: #if original flag is 8 (interpolated value) new flaq is 2 interpolated value
-            qual[index] = 2
-
-    return qual
-
-
-
-def change_tocm(sealev, qual, units):
-
-    if units =="m":
-        for index in range(len(qual)):
-            if not qual[index] == 9:
-                sealev[index]=sealev[index]*100             # Change from meters to cm
-                units="cm"
-    else:
-        print("Units were not in meter.")
-    return sealev, units
-
-
-def check_nsfile(time, sealev, qual):
-
-
     return
 
 
-def update_header(Headers, stationname, latitude, longitude,datum,time_dif,starttime, endtime,total,missing,units):
-    # Updates header info
-    # like in tgtools
-    Headers["Source"] = "CMEMS"
-    Headers["Interval"] = time_dif
-    Headers["Datum"] = datum
-    Headers["Station"] = stationname
-    Headers["Longitude"] = longitude
-    Headers["Latitude"] = latitude
-    Headers["Start time"] = starttime
-    Headers["End time"] = endtime
-    Headers["Total observations"] = str(total)
-
-    if GLstyle:
-        Headers["Missing values"] = str(missing)
-
-    if units == "cm":
-        Headers["Unit"] = "centimeter"
-    else:
-        Headers["Unit"] = "meter"
-
-    return Headers
-
-def write_file(filename,Headers,order, times,sealev,qual,station):
-    # Makes an output folder if it doesen't exist and then calls in functions to check that data is in order
-    # and creates needed variables for header, then it updates and orders the header and finally writes the output.
 
 
-    output_file=output_path+station.replace(" ", "")+".txt"                   # HERE OUTPUTFILENAME
-    # output_file=output_path+"Gl_"+filename[:-3]+".txt"                             # replace takes away empty spaces
 
-    #print("outputpath",output_path)
-    if not os.path.exists(output_path):                             # Making the output folder if needed
-        os.makedirs(output_path, exist_ok=True)
+def write_file(write_lines, filename,write_path):
+
+    #print(output_path+write_path)
+    output_file=output_path+write_path+(filename.replace(" ", ""))[:-3]+".txt"                   # HERE OUTPUTFILENAME
 
 
-    if len(Headers.keys()) == 0:
-        # Check for empty header, warn if so.
-        print("! Warning: empty header")
-    Header = []
-    # print(order)
-    # print(HeaderDict)
-    for key in order:
-        try:
-            Header.append([key, Headers[key]])
-        except KeyError:
-            Header.append([key, ""])
-    #print(Header)
-    output = []
-    for line in Header:
-        # print(line)
-        # Loop through all header lines
-        if not len(line) == 2:
-            # Header line should only have to elements (key and value)
-            print("! Warning: broken header line:", line)
-        else:
-            # If there's nothing in either position of the header,
-            # replace it with an empty string.
-            if line[0] == None:
-                line[0] = ""
-                print("! Warning: nameless header field: ", line)
-            if line[1] == None:
-                line[1] = ""
-                print("! Warning: valueless header field: ", line)
-            # Header name length
-            if len(line[0]) > 20:
-                print('! Warning: header name too long: "%s". Cropped to 20 characters.' % (line[0]))
-        output.append("%-20s%s\n" % (line[0][0:20], line[1]))
+    print("output",output_file)
+    if not os.path.exists(output_path+write_path):                             # Making the output folder if needed
+        os.makedirs(output_path+write_path, exist_ok=True)
+
 
     file = open(output_file, 'w')
     # print(output)
 
-    # Writing headers
-    file.writelines(output)
-    file.write('\n')
-    file.write('--------------------------------------------------------------\n')
 
-        # Writing values
-
-
-    for ii in range(len(times)):
-        file.write("{}\t{:6.4}\t{:3}\n".format(times[ii],  sealev[ii], qual[ii]))
+    for ii in range(len(write_lines)):
+        file.write(write_lines[ii])
     file.close()
-
-
-def check_order(file, dates):
-
-    if dates != sorted(dates):
-        print("Warning, data is not in order in file: ",file)
-
-    return
-
 
 
 
@@ -491,22 +355,7 @@ def check_order(file, dates):
 
 
 def main():
-    ##### Plan first open one nc file from test folder, then search for location of single lat,lon, get variables,write variables to file
-    ##### Suomenlahti_point (others would be Selkameri_point, Perameri_point, and the sl stations with their names)
-    ##### Then expand the search to all the stations needed, this requires station list of needed stations
-    ##### Then think about the format of writing the files and the folder structure, do we need headers for this data?
-    ##### When output is how we like it to be, expand the the search to all nc files (years,months,days)
 
-
-
-
-    # Use: See readme file
-
-    #headfile = headerfilename
-    #if GLstyle:
-    #    headfile=headerfilename2
-
-    #(Header_dict,header_order)=get_headers(headfile)        #  getting header model
 
     (data,okey)=open_txtfile(interest_points)
     if not okey:
@@ -520,56 +369,41 @@ def main():
         p_names.append(data[ii].split()[0].strip())
         p_lat.append(float(data[ii].split()[1].strip()))
         p_lon.append(float(data[ii].split()[2].strip()))
-    
-    #print(p_names[-1],p_lat[-1],p_lon[-1])
-
-    
-   # print(data[0:3])
-
-    os.chdir(path)
-
-    file_number=0
+    #print(p_lat)
 
 
-    for file in glob.glob("*.nc"):                 # Opens all that ends with .nc files in the path folder one by one
+    file_number = 0
 
-        file_number=file_number+1
-        print(file)
-        if file_number == 1:
-            match_index=get_grid(file,p_names,p_lat,p_lon)        # gets grid matches from first file (files need to be in a same grid all)
-        open_ncfiles(file,p_names,p_lat,p_lon,match_index)
-
-
-        # missing="not count"
-        #  if not okey:
-        #    print("Something went wrong opening nc-file",file, "Coudn't convert to txt file.")
-        # else:
-        #
-        #    if GLstyle:
-        #        qual_f=change_qualflags(qual_f) # changes quality flags to gl format
-        #         (sealev, missing) = prep_data(file, sealev, qual_f)
-        #     else:
-        #         (sealev, missing,Header_dict) = prep_data2(file, sealev, qual_f, Header_dict)
-        #
-        #     if units != "cm":
-        #         if units == "m":
-        #             (sealev, units)=change_tocm(sealev,qual_f,units)   ### Changing from meters to cm
-        #         else:
-        #             print("Units not in meters or centimeters, units",file, units)
-        #             exit()
-        #
-        #     check_order(file,time)
-        #     if t_diff!=time_difference:
-        #         print("Wrong sampling rate", time_difference,t_diff)
-        #         exit()
-        #     Header_dict=update_header(Header_dict,station,lat,lon,datum,t_diff,time[0],time[-1],len(time),missing,units)
-        #     write_file(file,Header_dict,header_order,time,sealev,qual_f,station)
-        #     print(station," done")
+    for year in range(1993,2017):
+        year_s=str(year)+"/"
+        #os.chdir(path_year)
+        #print(path_year)
+        for month in range(1,13):
+            if len(str(month)) == 1 :
+                month_s="0"+str(month)+"/"
+            else:
+                month_s=str(month)+"/"
+            write_path=year_s+month_s
+            #print(write_path)
+            os.chdir(in_path+year_s+month_s)
+            for file in glob.glob("*.nc"):                 # Opens all that ends with .nc files in the path folder one by one
+                file_number=file_number+1
+                #print(file)
+                if file_number == 1:
+                    match_index=get_grid(file,p_names,p_lat,p_lon)        # gets grid matches from first file (files need to be in a same grid all)
+                write_lines=open_ncfiles(file,p_names,p_lat,p_lon,match_index)
+                write_file(write_lines,file,write_path)
 
 
-            # Missing code if sampling rate is wrong, or if order is wrong
+    # Another way to do with os.walk -- not finnished version
+    # for root, dirs, files in os.walk(".", topdown=False):   #for root, dirs, files in os.walk(".", topdown=True)
+    # for name in files:
+    #     print(os.path.join(root, name))
+    # for name in dirs:
+    # to_path=(os.path.join(root, name))[2:]+"/"
+    # print(path_year+to_path)
 
-
+      ### NEXT WRITE OUTPUT + FOLDER WALKING PROBLEM
 
 
 
