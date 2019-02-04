@@ -6,6 +6,10 @@ import os, glob
 from scipy import stats
 
 path="/home/sanna/PycharmProjects/TGData_EVRF2007_txt/"
+output_path = "/home/sanna/PycharmProjects/Tests/"
+
+## Only works at the moment for non-gl header type
+
 
 def open_txtfile(file_name):
     #Opens a readable file and reads it
@@ -22,6 +26,150 @@ def open_txtfile(file_name):
         return data,ok
 
     return data, ok
+
+
+def get_headers(data):
+
+    # Reads a headers that contains the header titles and the order they should be in in the final header
+
+    Headers = {}
+    order=[]
+   # print(type(Headers))
+
+    for line in data:                 # Reads the lines of the file into a dictionary
+        line_s=line.strip()
+        #print(line_s)
+        if not (line_s == "" or line_s[0] == "#"):
+            if " " in line_s:
+                splitline = line_s.split()
+                value=""
+                if len(splitline) <= 2:
+                    #print(splitline)
+                    if splitline[0].strip() == "Datum":
+                        datum=splitline[1].strip()
+
+                    key = splitline[0].strip()
+                    value = splitline[1].strip()
+                else:
+                    if splitline[0].strip() == "Time":
+                        key ="Time system"
+                        value = splitline[2].strip()
+                    elif splitline[0].strip() == "Total":
+                        key ="Total Observations"
+                        value = splitline[2].strip()
+                    elif splitline[0].strip() == "Station":
+                        key = "Station"
+                        for jj in range(1,len(splitline)):
+                            value = value+(splitline[jj].strip())+" "
+                    elif splitline[0].strip() == "Start":
+                        key ="Start time"
+                        value = splitline[2].strip()+" " +splitline[3].strip()
+                    elif splitline[0].strip() == "End":
+                        key = "End time"
+                        value = splitline[2].strip() + " " + splitline[3].strip()
+                    elif splitline[0].strip() == "Quality":
+                        key ="Quality flags CMEMS"
+                        value = splitline[3].strip()
+                    elif splitline[0].strip() == "0":
+                        key ="0 No QC performed"
+                        value = splitline[4].strip()
+                    elif splitline[0].strip() == "1":
+                        key ="1 Good"
+                        value = splitline[2].strip()
+                    elif splitline[0].strip() == "2":
+                        key ="2 Probably good"
+                        value = splitline[3].strip()
+                    elif splitline[0].strip() == "3":
+                        key ="3 Bad pos. corr."
+                        value = splitline[4].strip()
+                    elif splitline[0].strip() == "4":
+                        key ="4 Bad Data"
+                        value = splitline[3].strip()
+                    elif splitline[0].strip() == "5":
+                        key ="5 Value changed"
+                        value = splitline[3].strip()
+                    elif splitline[0].strip() == "6":
+                        key ="6 Not used"
+                        value = splitline[3].strip()
+                    elif splitline[0].strip() == "7":
+                        key ="7 Nominal values"
+                        value = splitline[3].strip()
+                    elif splitline[0].strip() == "8":
+                        key ="8 Interpolated "
+                        value = splitline[2].strip()
+                    elif splitline[0].strip() == "9":
+                        key ="9 Missing values"
+                        value = splitline[3].strip()
+                    else:
+                        print(splitline)
+                #print(key,value)
+
+            Headers[key] = value
+            order.append(key)
+
+    #print(Headers)
+    #print(type(Headers))
+
+    return Headers,order,datum
+
+def prep_data(file,qual,headers):
+
+    data_good = 0
+    missing = 0
+    no_qc = 0
+    bad_data_pos = 0
+    bad_data = 0
+    prob_good = 0
+    val_change = 0
+    nominal = 0
+    not_used = 0
+    interpolated = 0
+    #print(type(qual))
+
+    for index in range(len(qual)):
+        if qual[index]==1:
+            data_good=data_good+1
+        elif qual[index]==9:
+            missing=missing+1
+        elif qual[index] == 3:
+            bad_data_pos = bad_data_pos + 1
+        elif qual[index] == 4:
+            bad_data = bad_data + 1
+        elif qual[index] == 0:
+            no_qc=no_qc+1
+        elif qual[index] ==6:
+            not_used = not_used + 1
+        elif qual[index] == 2:
+            prob_good= prob_good + 1
+        elif qual[index] == 5:
+            val_change= val_change + 1
+        elif qual[index] == 7:
+            nominal= nominal + 1
+        elif qual[index] == 8:
+            interpolated= interpolated + 1
+
+        else:
+            print("Weirdness in quality flag in  ", file, index, qual[index])
+
+    headers["0 No QC performed"] = no_qc
+    headers["1 Good"] = data_good
+    headers["2 Probably good"] = prob_good
+    headers["3 Bad pos. corr."] = bad_data_pos
+    headers["4 Bad Data"] = bad_data
+    headers["5 Value changed"] = val_change
+    headers["6 Not used"] = not_used
+    headers["7 Nominal value"] = nominal
+    headers["8 Interpolated"] = interpolated
+    headers["9 Missing value"] = missing
+
+    #print("In file",file,":","Good data:", data_good," Missing Data:",missing," Bad Data:",bad_data," No QC:", no_qc, " Probably Good:",prob_good,
+    #    " Value Changed:", val_change, " Nominal Value: ", nominal, " Interpolated:", interpolated)
+
+
+    return headers
+
+
+
 
 def clean_up_helper(date):
     # To check if date is at most half an hour late from when the measurement should have been
@@ -73,10 +221,13 @@ def clean_up(date,s_lev,q_label,filename):
             #else:                # REMOVE THIS
                 #print("REMOVING FIRST LINE",date[ind])
 
+    #for ii in range(len(date)):
+
+
     print("Cleaned file now at length ",len(new_date))
 
 
-    return [new_date], [new_slev], [new_qual]
+    return new_date, new_slev, new_qual
 
 def add_missing(date, s_lev, q_label, filename,inds_to_check):
     # missing measurement, add missing values
@@ -93,6 +244,8 @@ def add_missing(date, s_lev, q_label, filename,inds_to_check):
     new_date = []
     new_slev = []
     new_qual = []
+
+
 
     #print(inds_to_check)
 
@@ -139,7 +292,72 @@ def add_missing(date, s_lev, q_label, filename,inds_to_check):
 
     print("Added missing to file ",filename," new length of file ",len(new_date))
 
-    return [new_date], [new_slev], [new_qual]
+    return new_date, new_slev, new_qual
+
+
+def write_output(sl_variables,Headers ,order, outputfile):
+    # print(type(Headers))
+    # Writes the output
+    # Very much like in tgtools
+    if len(Headers.keys()) == 0:
+        # Check for empty header, warn if so.
+        print("! Warning: empty header")
+    Header = []
+    # print(order)
+    # print(HeaderDict)
+    for key in order:
+        try:
+            Header.append([key, Headers[key]])
+        except KeyError:
+            Header.append([key, ""])
+    # print(Header)
+    output = []
+    for line in Header:
+        # print(line)
+        # Loop through all header lines
+        if not len(line) == 2:
+            # Header line should only have to elements (key and value)
+            print("! Warning: broken header line:", line)
+        else:
+            # If there's nothing in either position of the header,
+            # replace it with an empty string.
+            if line[0] == None:
+                line[0] = ""
+                print("! Warning: nameless header field: ", line)
+            if line[1] == None:
+                line[1] = ""
+                print("! Warning: valueless header field: ", line)
+            # Header name length
+            if len(line[0]) > 20:
+                print('! Warning: header name too long: "%s". Cropped to 20 characters.' % (line[0]))
+        output.append("%-20s%s\n" % (line[0][0:20], line[1]))
+
+    file = open(outputfile, 'w')
+
+    # Writing headers
+    file.writelines(output)
+    file.write('\n')
+    file.write('--------------------------------------------------------------\n')
+
+    # Writing values
+    date = []
+    time = []
+    slev = []
+    qual = []
+    print("Writing length", len(sl_variables))
+
+    for ii in range(len(sl_variables)):
+        date.append((sl_variables[ii][0]).strftime("%Y-%m-%d"))
+        time.append((sl_variables[ii][0]).strftime("%H:%M"))
+        slev.append(str(sl_variables[ii][1]))
+        qual.append(sl_variables[ii][2])
+    prints = []
+    for ind in range(len(date)):
+        prints.append("{}\t{}\t{:6.4}\t{:3}\n".format(date[ind], time[ind], slev[ind], qual[ind]))
+
+    for ind in range(len(sl_variables)):
+        file.write(prints[ind])
+    file.close()
 
 
 ###########################################3
@@ -152,17 +370,16 @@ def main():
         file.close()
 
 
-        head=[]
         date=[]
         s_lev=[]
         q_label=[]
 
+        (Headers, order, datum_old) = get_headers(data[0:22])
+        if datum_old == "msl" or datum_old == "MSL" :
+            print("Warning - Datum MSL in file ", filename)
 
-        for ii in range(0,24):
-            head.append(data[ii])
-            if data[ii] == "Datum*":
-                if (data[ii].split()[1].strip() == "msl" or data[ii].split()[1].strip() == "MSL" ):
-                    print("Warning - Datum MSL in file ",filename)
+
+
 
 
         for jj in range(24,len(data)):
@@ -175,6 +392,7 @@ def main():
             s_lev.append(float(splitline[2].strip()))
             q_label.append(int(splitline[3].strip()))
 
+
         if len(date)<2:             # NOT WORTH CHECKING FILES IF EMTY OR ONLY 1 LINE
             print("Too short file",filename)
             continue
@@ -185,26 +403,49 @@ def main():
             if not date[ind].strftime("%M")=="00":
                 problematic_file = True
 
+
+        #print("1:",len(date))
+
         if problematic_file:
-            print("Problematic file, timeinterval not 1 hour ", filename)       ### This now clearing up multiples of same hour okey
+            print("Problematic file, timeinterval not 1 hour ", filename)       #Clearing up multiples of same hour
             #print(date[0:10])
             (date,s_lev,q_label)=clean_up(date,s_lev,q_label,filename)
+
+        #print("2",len(date))
 
         non_hour_ind=[]
         for ind in range(1,len(date)):
             if date[ind]-date[ind-1] != datetime.timedelta(seconds=3600):
                 non_hour_ind.append(ind)
 
+
+
         if len(non_hour_ind)!=0:
-            print("Missing measurements ",filename)                             ########### Next now filling in the missing measuremenets!
+            print("Missing measurements ",filename)                             # Adding missing measurements as nan imputs
             (date, s_lev, q_label) = add_missing(date, s_lev, q_label, filename,non_hour_ind)
+
+        #print("3", date[0:3], len(date))
 
 
         if ((not problematic_file) and non_hour_ind == []):
             print("Good file",filename)
 
-        ########### Next, writing to file and then testing one more time untill I will run it (to another folder)
-        ######## Need to check the sweden stuff as well.
+        output_file = output_path + filename.replace(" ", "")
+
+        if not os.path.exists(output_path):  # Making the output folder if needed
+            os.makedirs(output_path, exist_ok=True)
+
+
+        tg_data=[]
+
+        #print(date.shape)
+        prep_data(filename,q_label,Headers)
+
+        for ind in range(len(date)):
+            tg_data.append([date[ind],s_lev[ind],q_label[ind]])
+
+
+        write_output(tg_data,Headers,order,output_file)
 
 
 
