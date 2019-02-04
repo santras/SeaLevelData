@@ -3,10 +3,11 @@
 import datetime
 import numpy as np
 import os, glob
+import pandas as pd
 from scipy import stats
 
 path="/home/sanna/PycharmProjects/TGData_EVRF2007_txt/"
-output_path = "/home/sanna/PycharmProjects/Tests/"
+output_path = "/home/sanna/PycharmProjects/TGData_EVRF2007_txt_cleaned/"
 
 ## Only works at the moment for non-gl header type
 
@@ -55,7 +56,7 @@ def get_headers(data):
                         key ="Time system"
                         value = splitline[2].strip()
                     elif splitline[0].strip() == "Total":
-                        key ="Total Observations"
+                        key ="Total observations"
                         value = splitline[2].strip()
                     elif splitline[0].strip() == "Station":
                         key = "Station"
@@ -92,13 +93,13 @@ def get_headers(data):
                         key ="6 Not used"
                         value = splitline[3].strip()
                     elif splitline[0].strip() == "7":
-                        key ="7 Nominal values"
+                        key ="7 Nominal value"
                         value = splitline[3].strip()
                     elif splitline[0].strip() == "8":
-                        key ="8 Interpolated "
+                        key ="8 Interpolated"
                         value = splitline[2].strip()
                     elif splitline[0].strip() == "9":
-                        key ="9 Missing values"
+                        key ="9 Missing value"
                         value = splitline[3].strip()
                     else:
                         print(splitline)
@@ -112,7 +113,7 @@ def get_headers(data):
 
     return Headers,order,datum
 
-def prep_data(file,qual,headers):
+def prep_data(file,qual,headers,startd,endd):
 
     data_good = 0
     missing = 0
@@ -125,6 +126,8 @@ def prep_data(file,qual,headers):
     not_used = 0
     interpolated = 0
     #print(type(qual))
+
+    #print(qual[0:20])
 
     for index in range(len(qual)):
         if qual[index]==1:
@@ -146,10 +149,13 @@ def prep_data(file,qual,headers):
         elif qual[index] == 7:
             nominal= nominal + 1
         elif qual[index] == 8:
+            #print("haa")
             interpolated= interpolated + 1
 
         else:
             print("Weirdness in quality flag in  ", file, index, qual[index])
+
+   # print(interpolated)
 
     headers["0 No QC performed"] = no_qc
     headers["1 Good"] = data_good
@@ -161,6 +167,9 @@ def prep_data(file,qual,headers):
     headers["7 Nominal value"] = nominal
     headers["8 Interpolated"] = interpolated
     headers["9 Missing value"] = missing
+    headers["Total observations"] = len(qual)
+    headers["Start time"] = startd
+    headers["End time"] = endd
 
     #print("In file",file,":","Good data:", data_good," Missing Data:",missing," Bad Data:",bad_data," No QC:", no_qc, " Probably Good:",prob_good,
     #    " Value Changed:", val_change, " Nominal Value: ", nominal, " Interpolated:", interpolated)
@@ -196,28 +205,28 @@ def clean_up(date,s_lev,q_label,filename):
             new_date.append(date[ind])
             new_slev.append(s_lev[ind])
             new_qual.append(q_label[ind])
-        elif (len(new_date))>1:                                       # Wont work for first okey line since no other measurements exis
-            if date[ind].strftime("%H") != new_date[-1].strftime("%H"):       # If no measurement from same hour allready exist
-                if (clean_up_helper(date[ind])):  # If measurement is okey approksimation from at the hour measurement
-                    new_date.append(date[ind])
-                    new_slev.append(s_lev[ind])
-                    new_qual.append(q_label[ind])
-                #else: # REMOVE THIS
-                #    print("REMOVING bad approksimation from same hour as", new_date[-1], date[ind])
-            elif date[ind].date() != new_date[-1].date() :           # If measurement allready from same hour, check if different date
-                if (clean_up_helper(date[ind])):  # If measurement is okey approksimation from at the hour measurement
-                    new_date.append(date[ind])
-                    new_slev.append(s_lev[ind])
-                    new_qual.append(q_label[ind])
-                #else: # REMOVE THIS
-                #    print("REMOVING from same hour as", new_date[-1], date[ind])
-            #else:  # REMOVE THIS
-               # print("REMOVING from same hour as", new_date[-1],date[ind])
-        else:   # if first line case
-            if (clean_up_helper(date[ind])):    # If measurement is okey approksimation from at the hour measurement
-                new_date.append(date[ind])
-                new_slev.append(s_lev[ind])
-                new_qual.append(q_label[ind])
+        # elif (len(new_date))>1:                                       # Wont work for first okey line since no other measurements exis
+        #     if date[ind].strftime("%H") != new_date[-1].strftime("%H"):       # If no measurement from same hour allready exist
+        #         if (clean_up_helper(date[ind])):  # If measurement is okey approksimation from at the hour measurement
+        #             new_date.append(date[ind])
+        #             new_slev.append(s_lev[ind])
+        #             new_qual.append(q_label[ind])
+        #         #else: # REMOVE THIS
+        #         #    print("REMOVING bad approksimation from same hour as", new_date[-1], date[ind])
+        #     elif date[ind].date() != new_date[-1].date() :           # If measurement allready from same hour, check if different date
+        #         if (clean_up_helper(date[ind])):  # If measurement is okey approksimation from at the hour measurement
+        #             new_date.append(date[ind])
+        #             new_slev.append(s_lev[ind])
+        #             new_qual.append(q_label[ind])
+        #         #else: # REMOVE THIS
+        #         #    print("REMOVING from same hour as", new_date[-1], date[ind])
+        #     #else:  # REMOVE THIS
+        #        # print("REMOVING from same hour as", new_date[-1],date[ind])
+        # else:   # if first line case
+        #     if (clean_up_helper(date[ind])):    # If measurement is okey approksimation from at the hour measurement
+        #         new_date.append(date[ind])
+        #         new_slev.append(s_lev[ind])
+        #        new_qual.append(q_label[ind])
             #else:                # REMOVE THIS
                 #print("REMOVING FIRST LINE",date[ind])
 
@@ -229,7 +238,7 @@ def clean_up(date,s_lev,q_label,filename):
 
     return new_date, new_slev, new_qual
 
-def add_missing(date, s_lev, q_label, filename,inds_to_check):
+def add_missing(date, s_lev, q_label, filename,inds_to_check,time_diff=3600):
     # missing measurement, add missing values
     #checking if list in order
 
@@ -259,8 +268,8 @@ def add_missing(date, s_lev, q_label, filename,inds_to_check):
             new_slev.append(s_lev[index])
             new_qual.append(q_label[index])
 
-        while date[(inds_to_check[ind])] - new_date[-1] >datetime.timedelta(seconds=3600):      # While difference is more than 1 hour put in  measurements
-            new_date.append(new_date[-1]+datetime.timedelta(seconds=3600))
+        while date[(inds_to_check[ind])] - new_date[-1] >datetime.timedelta(seconds=time_diff):      # While difference is more than 1 hour put in  measurements
+            new_date.append(new_date[-1]+datetime.timedelta(seconds=time_diff))
             new_slev.append(np.nan)
             new_qual.append(9)
             #print(date[inds_to_check[ind]],new_date[-1])
@@ -283,7 +292,7 @@ def add_missing(date, s_lev, q_label, filename,inds_to_check):
         print("Warning - Problems with adding missing filename ",filename)
         bad= []
         for ind in range(1, len(new_date)):
-            if new_date[ind] - new_date[ind - 1] != datetime.timedelta(seconds=3600):
+            if new_date[ind] - new_date[ind - 1] != datetime.timedelta(seconds=time_diff):
                 bad.append(ind)
         print("Problems with lines ",bad," len of file ",len(new_date))
         for ii in range (len(bad)):
@@ -360,11 +369,47 @@ def write_output(sl_variables,Headers ,order, outputfile):
     file.close()
 
 
+
+def non_timely_inds(date,time_diff=3600):
+    non_hour_ind = []
+    for ind in range(1, len(date)):
+        if date[ind] - date[ind - 1] != datetime.timedelta(seconds=time_diff):
+            non_hour_ind.append(ind)
+
+    return non_hour_ind
+
+
+
+
+def add_interp(dates,slevs,labels):
+    print("Interpolating")
+
+    my_pd=pd.DataFrame(slevs,index=dates)
+
+    #print(slevs[0:30])
+    my_intepolated = my_pd.interpolate(method="linear",axis=0,limit=3)              # linear interpolation, only interpolates value if 1 measurement/hour
+
+    slevs_interp=list(my_intepolated.values.flatten())
+    for ind in range(len(slevs)):
+        if slevs[ind] != slevs_interp[ind]:
+            if np.isnan(slevs[ind]) and np.isnan(slevs_interp[ind]) : # Don't regognise nan!=nan without a trick
+                a=1
+            else:
+                #print("changed",slevs[ind], slevs_interp[ind], labels[ind])
+                labels[ind]=8
+
+
+
+
+   # print(slevs[0].type)
+   # print(slevs[0:30])
+
+    return slevs_interp,labels
 ###########################################3
 
 def main():
     os.chdir(path)
-    for filename in glob.glob("H*txt"):
+    for filename in glob.glob("*.txt"):
         file = open (filename,"r")
         data = file.readlines()
         file.close()
@@ -377,9 +422,6 @@ def main():
         (Headers, order, datum_old) = get_headers(data[0:22])
         if datum_old == "msl" or datum_old == "MSL" :
             print("Warning - Datum MSL in file ", filename)
-
-
-
 
 
         for jj in range(24,len(data)):
@@ -398,10 +440,40 @@ def main():
             continue
 
         problematic_file = False
+        min_interval_10 = False
+        min_interval_15 = False
+        min_interval_5  = False
+        really_not_good = False
 
         for ind in range(len(date)):
-            if not date[ind].strftime("%M")=="00":
+            if date[ind].strftime("%M") !="00":
                 problematic_file = True
+                if date[ind].strftime("%M") in ("15","30","45"):
+                    min_interval_15 = True
+                elif date[ind].strftime("%M") in ("10","20","30","40","50"):
+                    min_interval_10 = True
+                elif date[ind].strftime("%M") in ("05","10","15","20","25","30","35","40","45","50","55"):
+                    min_interval_5 = True
+                else:
+                    really_not_good =True
+
+        if not really_not_good:
+            if min_interval_5:
+                non_5inds=non_timely_inds(date,time_diff=300)
+                (date, s_lev, q_label) = add_missing(date, s_lev, q_label, filename, non_5inds, 300)
+            elif min_interval_10 :
+                non_10inds=non_timely_inds(date,time_diff=600)
+                (date, s_lev, q_label) = add_missing(date, s_lev, q_label, filename, non_10inds, 600)
+            elif min_interval_15 :
+                non_15inds = non_timely_inds(date, time_diff=900)
+                (date, s_lev, q_label) = add_missing(date, s_lev, q_label, filename, non_15inds, 900)
+
+            if problematic_file:
+                print("Problematic file with interval 5/10/15 ",min_interval_5,min_interval_10,min_interval_15)
+                (s_lev, q_label) = add_interp(date,s_lev, q_label)
+        else:
+            print("File has strange timestamps ", filename, date[0:5])
+       # print(date[0:20])
 
 
         #print("1:",len(date))
@@ -413,16 +485,13 @@ def main():
 
         #print("2",len(date))
 
-        non_hour_ind=[]
-        for ind in range(1,len(date)):
-            if date[ind]-date[ind-1] != datetime.timedelta(seconds=3600):
-                non_hour_ind.append(ind)
+        non_hour_ind=non_timely_inds(date,time_diff=3600)
 
 
 
         if len(non_hour_ind)!=0:
             print("Missing measurements ",filename)                             # Adding missing measurements as nan imputs
-            (date, s_lev, q_label) = add_missing(date, s_lev, q_label, filename,non_hour_ind)
+            (date, s_lev, q_label) = add_missing(date, s_lev, q_label, filename,non_hour_ind,3600)
 
         #print("3", date[0:3], len(date))
 
@@ -439,7 +508,7 @@ def main():
         tg_data=[]
 
         #print(date.shape)
-        prep_data(filename,q_label,Headers)
+        Headers=prep_data(filename,q_label,Headers,date[0],date[-1])
 
         for ind in range(len(date)):
             tg_data.append([date[ind],s_lev[ind],q_label[ind]])
