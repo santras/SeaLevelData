@@ -8,7 +8,8 @@ from scipy import stats
 
 path="/home/sanna/PycharmProjects/TGData_EVRF2007_txt/"
 output_path = "/home/sanna/PycharmProjects/TGData_EVRF2007_txt_cleaned/"
-
+#path="/home/sanna/PycharmProjects/Tests/"
+#output_path="/home/sanna/PycharmProjects/Tests/Test/"
 ## Only works at the moment for non-gl header type
 
 
@@ -378,16 +379,32 @@ def non_timely_inds(date,time_diff=3600):
 
     return non_hour_ind
 
+def roundTime(dt=None, roundTo=60):
+    # From  Stack Overflow aswer by Le Droid (copied 23.1.2019)
+    # https://stackoverflow.com/questions/3463930/how-to-round-the-minute-of-a-datetime-object-python/10854034#10854034
+
+    """Round a datetime object to any time lapse in seconds
+    dt : datetime.datetime object, default now.
+    roundTo : Closest number of seconds to round to, default 1 minute.
+    Author: Thierry Husson 2012 - Use it as you want but don't blame me.
+    """
+    if dt == None :
+        dt = datetime.datetime.now()
+
+    seconds = (dt.replace(tzinfo=None) - dt.min).seconds
+    rounding = (seconds+roundTo/2) // roundTo * roundTo
+    return dt + datetime.timedelta(0,rounding-seconds,-dt.microsecond)
 
 
 
-def add_interp(dates,slevs,labels):
+
+def add_interp(dates,slevs,labels,interp_limit):
     print("Interpolating")
 
     my_pd=pd.DataFrame(slevs,index=dates)
 
     #print(slevs[0:30])
-    my_intepolated = my_pd.interpolate(method="linear",axis=0,limit=3)              # linear interpolation, only interpolates value if 1 measurement/hour
+    my_intepolated = my_pd.interpolate(method="linear",axis=0,limit_direction="both",limit=interp_limit)              # linear interpolation, only interpolates value if 1 measurement/hour
 
     slevs_interp=list(my_intepolated.values.flatten())
     for ind in range(len(slevs)):
@@ -409,7 +426,7 @@ def add_interp(dates,slevs,labels):
 
 def main():
     os.chdir(path)
-    for filename in glob.glob("*.txt"):
+    for filename in glob.glob("Porvoo_test_file.txt"):
         file = open (filename,"r")
         data = file.readlines()
         file.close()
@@ -457,22 +474,33 @@ def main():
                 else:
                     really_not_good =True
 
+
         if not really_not_good:
             if min_interval_5:
                 non_5inds=non_timely_inds(date,time_diff=300)
                 (date, s_lev, q_label) = add_missing(date, s_lev, q_label, filename, non_5inds, 300)
+                (s_lev, q_label) = add_interp(date, s_lev, q_label, 10)
             elif min_interval_10 :
                 non_10inds=non_timely_inds(date,time_diff=600)
                 (date, s_lev, q_label) = add_missing(date, s_lev, q_label, filename, non_10inds, 600)
+                (s_lev, q_label) = add_interp(date, s_lev, q_label,5)
             elif min_interval_15 :
                 non_15inds = non_timely_inds(date, time_diff=900)
                 (date, s_lev, q_label) = add_missing(date, s_lev, q_label, filename, non_15inds, 900)
+                (s_lev, q_label) = add_interp(date, s_lev, q_label,3)
 
             if problematic_file:
                 print("Problematic file with interval 5/10/15 ",min_interval_5,min_interval_10,min_interval_15)
-                (s_lev, q_label) = add_interp(date,s_lev, q_label)
+
         else:
-            print("File has strange timestamps ", filename, date[0:5])
+            print("File has strange timestamps, rounding to nearest 5 min interval ", filename)
+            for tt in range(len(date)):
+                date[tt]=roundTime(date[tt],300)    # Rounding time to nearest 5 min
+            non_5inds = non_timely_inds(date, time_diff=300)
+            (date, s_lev, q_label) = add_missing(date, s_lev, q_label, filename, non_5inds, 300)
+            (s_lev, q_label) = add_interp(date, s_lev, q_label,10)
+
+
        # print(date[0:20])
 
 
