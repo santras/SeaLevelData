@@ -9,10 +9,12 @@ from scipy import stats
 
 # The purpose of this code is to re-write the station-by-station sealevel files into day by day sealevel files to make the plotting faster
 
-path="/home/sanna/PycharmProjects/TGData_EVRF2007_txt"                            # Path for the original data file folder, best not to have anything else
-output_path= "../Daily_files/Test/"        # than the .txt data file in this directory
+path="/home/sanna/PycharmProjects/TGData_EVRF2007_txt_cleaned/"                            # Path for the original data file folder, best not to have anything else
+output_path= "/home/sanna/PycharmProjects/Daily_files/2017/"        # than the .txt data file in this directory
 time_period_start=datetime.datetime(2017,1,1,0,0)                    # As intergers, just easier   (YYYY,Month,Day,Hour,Min)
-time_period_end=datetime.datetime(2017,1,1,23,0)
+time_period_end=datetime.datetime(2017,12,31,23,0)
+# doing 2017
+
 
 
 def open_txtfile(file_name):
@@ -57,11 +59,11 @@ def get_data(start):
 
         if not (start>e_date or start<s_date):   # To check that start date within time interval given
             #print("Data should be here",file,start,end,e_date,s_date)
-            (data_formatted,bad_station)=format_data(data,start)
+            (data_formatted,bad_station)=format_data(data,start) # Gets data and boolean false if day looked for is only nans
             if not bad_station:
                 if data_formatted != []:
                     file_count = file_count + 1
-                    retrieve_okey=True
+                    retrieve_okey=True                  # Retriev okey, if went okey
                     #print("Data found",file)
                 #else:
                     #print("Data not found,empty", file)
@@ -72,7 +74,7 @@ def get_data(start):
 
         #print(len(formatted_data))
         if retrieve_okey:
-            for ind in range(len(data_formatted)):
+            for ind in range(len(data_formatted)):                  # Adds to data_all if data found in this file
                 #print(data_formatted)
                 data_all.append(data_formatted[ind])
 
@@ -188,7 +190,7 @@ def write_output(sl_variables,time_marker):
         qual.append(sl_variables[ii][5])
     prints=[]
     for ind in range(len(date)):
-        prints.append("{}\t{}\t{:12}\t{:3.4}\t{:3.4}\t{:6.4}\t{:3}\n".format(date[ind],time[ind],stat[ind],lat[ind],lon[ind],slev[ind],qual[ind]))
+        prints.append("{}\t{}\t{:26}\t{:6.4}\t{:6.4}\t{:6.4}\t{:3}\n".format(date[ind],time[ind],stat[ind],lat[ind],lon[ind],slev[ind],qual[ind]))
 
     file=open(output_file,'w')
     try:
