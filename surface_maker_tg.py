@@ -18,7 +18,7 @@ import time
 path = "/home/sanna/PycharmProjects/Daily_files/2007/"  # Path for the original data file folder, best not to have anything else
 output_path = "/home/sanna/PycharmProjects/Surfaces/TG/2007/"  # than the .txt data file in this directory
 time_period_start = datetime.datetime(2007, 1, 1, 0, 0)  # As intergers, just easier   (YYYY,Month,Day,Hour,Min)
-time_period_end = datetime.datetime(2007, 1, 1, 1, 00)
+time_period_end = datetime.datetime(2007, 1, 1, 23, 00)
 grid_lat_min = 53.98112672        #48.4917 to 65.85825 mid points     # lat width 0.033269252873563214       smaller:58.40593736/53.98112672
 grid_lat_max = 65.85825
 grid_lat_num = 358         # 523                                                                        smaller:224/314
@@ -133,19 +133,20 @@ def eval_values(lat, lon, slev, date):
     if plotting == True:
         # Basemap from cartopy
         ax = plt.axes(projection=cartopy.crs.PlateCarree())
-        plt.pcolor(XGRID, YGRID, ZGRID, cmap=cm.jet, vmin=slev_min, vmax=slev_max, zorder=1,
-                   transform=cartopy.crs.PlateCarree())
+        plt.pcolor(XGRID, YGRID, ZGRID, cmap=cm.jet, vmin=-30, vmax=110, zorder=1,
+                   transform=cartopy.crs.PlateCarree())   # vmin=slev_min, vmax=slev_max
         ax.set_extent([16,31.2,56,66.8]) #([16,31.2,56,66.8])#([9.20, 31, 53.4, 66.2])
         ax.set_title('TG-surface interpolation rbf-thinplate ' + date.strftime("%d.%m.%Y %H:%M"))
-        land_50m = cartopy.feature.NaturalEarthFeature('physical', 'land', '50m', edgecolor='face', zorder=2,
-                                                       facecolor=cartopy.feature.COLORS['land'])
+        land_50m = cartopy.feature.NaturalEarthFeature('physical', 'land', '50m', edgecolor='face',zorder=2,
+                                                       facecolor="white")
+                                                       #facecolor=cartopy.feature.COLORS['land'])
         ax.add_feature(land_50m)
 
         ax.plot(lon, lat, 'bo', markersize=3, transform=cartopy.crs.Geodetic(), zorder=3)
         ax.coastlines(resolution='50m', color='black', linewidth=1)
 
         plt.colorbar(fraction=0.046, pad=0.04)
-        plt.savefig(output_path + 'Plots/tg_surf_aa_' + date.strftime('%d%m%H') + '.png')
+        plt.savefig(output_path + 'Plots/tg_surf_' + date.strftime('%Ym%d_%H') + '.png')
         plt.close()
 
     return ZGRID
