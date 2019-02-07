@@ -20,7 +20,8 @@ from netCDF4 import Dataset
 path ="/home/sanna/PycharmProjects/ModelData/my.cmems-du.eu/Core/BALTICSEA_REANALYSIS_PHY_003_011/dataset-reanalysis-nemo-surface/2007/01/"  # Path for the original data file folder, best not to have anything else
 output_path = "/home/sanna/PycharmProjects/Surfaces/Model/2007/"  # than the .txt data file in this directory
 time_period_start = datetime.datetime(2007, 1, 1, 0, 0)  # As intergers, just easier   (YYYY,Month,Day,Hour,Min)
-time_period_end = datetime.datetime(2007, 1, 1, 1, 00)
+days_to_plot=2
+#time_period_end = datetime.datetime(2007, 1, 1, 1, 00)
 #grid_lat_min = 53.98112672        #48.4917 to 65.85825 mid points     # lat width 0.033269252873563214       smaller:58.40593736/53.98112672
 #grid_lat_max = 65.85825
 #grid_lat_num = 358         # 523                                                                        smaller:224/314
@@ -92,7 +93,7 @@ def plot_surf(date,lat, lon, slev):
     ax = plt.axes(projection=cartopy.crs.PlateCarree())
     plt.pcolor(lon, lat, slev, cmap=cm.jet, vmin=-0.3,vmax=0.5, zorder=1, transform=cartopy.crs.PlateCarree())   # vmin=slev_min, vmax=slev_max
     ax.set_extent([16,31.2,56,66.8]) #([16,31.2,56,66.8])#([9.20, 31, 53.4, 66.2])
-    ax.set_title('Model surface' + date.strftime("%d.%m.%Y %H:%M"))
+    ax.set_title('Model surface ' + date.strftime("%d.%m.%Y %H:%M"))
     #land_50m = cartopy.feature.NaturalEarthFeature('physical', 'land', '50m', edgecolor='face', zorder=2,facecolor=cartopy.feature.COLORS['land'])
     #ax.add_feature(land_50m)
 
@@ -114,11 +115,11 @@ def main():
 
     os.chdir(path)
 
-    if time_period_end <= time_period_start:
-        print("Something went wrong with start time and end time parameter, please check!")
-        exit()
+    #if time_period_end <= time_period_start:
+    #    print("Something went wrong with start time and end time parameter, please check!")
+    #    exit()
     start_time = time_period_start
-    end_time = time_period_end
+    #end_time = time_period_end
     count = 0
 
     if not os.path.exists(output_path):  # Making the output folder if needed
@@ -127,7 +128,7 @@ def main():
         os.makedirs(output_path, exist_ok=True)
 
     # HERE LOOPING HOURLY
-    for ii in range(0,1):
+    for ii in range(0,days_to_plot):
         run_timer_start=time.time()
         (data_found,filename,lat,lon,sealev) = get_data(
             start_time)
