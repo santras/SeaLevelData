@@ -14,8 +14,8 @@ points_list="/home/sanna/PycharmProjects/ModelData/NorthernBaltic_Points_of_Inte
 output_folder="/home/sanna/PycharmProjects/PLOTS/Stations/"
 
 #time_period_start=datetime.datetime(1993,1,1,0,0)
-time_period_start=datetime.datetime(2017,1,1,0,0)
-time_period_end=datetime.datetime(2017,12,31,23,0)
+time_period_start=datetime.datetime(2016,1,1,0,0)
+time_period_end=datetime.datetime(2016,1,10,0,0)
 
 
 def make_hist(histodata,name):
@@ -30,11 +30,11 @@ def make_hist(histodata,name):
 
 
 
-def make_tseries(data_in,name):
+def make_tseries(data_in,name,plotname):
     #tseries = plt.figure()
     start = (data_in.Time.min())
     stop = (data_in.Time.max())
-    titlename = name +" " + start.strftime("%-d.%-m.%Y") + " - " + stop.strftime("%-d.%-m.%Y")
+    titlename = plotname +": " +name +" " + start.strftime("%-d.%-m.%Y") + " - " + stop.strftime("%-d.%-m.%Y")
     #print(titlename)
     #print(data_in[0]) #.strftime("%Y %m %d"))
 
@@ -49,10 +49,21 @@ def make_tseries(data_in,name):
     plt.xlim(start, stop) # X limits to actual data limits%
     plt.yticks(fontsize=14)
     plt.xticks(fontsize=14)
-    plt.xlabel("Sealevels (EVRF) in cm",fontsize=16)
+    plt.tick_params(axis="x",which="minor",bottom=False,top=False,labelbottom=False)
+    #setmajorlocation
+
+    #(locations,xlabels)=plt.xticks()    #fontsize=14
+    #print(locations,xlabels)
+
+    #plt.xlabel("Sealevels (EVRF) in cm",fontsize=16)
     plt.title(titlename,fontsize=18)
 
-    plt.savefig(output_folder + 'Timeseries_' + name + start.strftime("%Y%m%d") + "_" + stop.strftime("%Y%m%d") + '.png')
+    if plotname == "Tide Gauge Data":
+        shortname="tg"
+    elif plotname == "Model Data":
+        shortname="model"
+
+    plt.savefig(output_folder +shortname+'_' + name + start.strftime("%Y%m%d") + "_" + stop.strftime("%Y%m%d") + '.png')
     #plt.show()
     plt.close()
 
@@ -69,40 +80,68 @@ def get_tg(filename):
     data = pd.read_csv(filename, skiprows=24, sep="\t", header=None, names=headers, na_values="nan",parse_dates={"Time": ["Dates", "Times"]})
     data.Sealevels = data.Sealevels.apply(lambda x: np.float64(x))  # Changing the types of Sealevels to float
 
-    # Testing that timestamp works
-    #for ii in range(len(data.Sealevels)):
-    #    try:
-    #        data.Timestamp[ii]+datetime.timedelta(seconds=3600)
-    #    except:
-    #        print("Not datetime?",data.Timestamp[ii])
-
-    #print(data[time_period_start])
-
-    #plt.figure()
-    #ax = data.plot(x="Time",y="Sealevels")
-    #plt.show()
-    #plt.close()
-
-    #print(data.Time[0])
-
-
-
     data_cut=(data.loc[( (data['Time'] >= time_period_start) )] ) # and (data['Time']<=time_period_end) ) ] )
     data_cut=(data_cut.loc[( (data_cut['Time'] <= time_period_end) )] )
     #print(data_cut.keys)
     #print(data_cut.shape)
     #print(data_cut.Sealevels.head)
 
-    #plt.figure()
-    #ax = data_cut.plot(x="Time",y="Sealevels")
-    #plt.show()
-    #plt.close()
 
     #make_hist(data.Sealevels,name)
-    make_tseries(data_cut,name)
+    plotname="Tide Gauge Data"
+    make_tseries(data_cut,name,plotname)
 
 
-    return
+    return data_cut
+
+
+def get_model(location,station):
+
+    #print((time_period_end-time_period_start).days)
+    days_to_do=((time_period_end-time_period_start).days)
+    if days_to_do> 31:
+        print("Only periods smaller than 1 month for now")
+    elif time_period_end.strftime("%m") != time_period_start.strftime("%m"):
+        print("Only periods smaller than 1 month for now")
+
+
+    file_=location+"CMEMS_BAL_PHY_reanalysis_surface_"
+    headers = ["Locations","Time","Point_Lat","Point_Lon","Sealevels","M_Latitudes","M_Longitudes"]
+    new_data=pd.DataFrame(columns=headers)
+
+
+    for ind in range(days_to_do):
+        file=file_+((time_period_start+datetime.timedelta(days_to_do)).strftime("%Y%m%d"))+".txt"
+        #print(file)
+        data = pd.read_csv(file,  sep="\t", header=None, names=headers, na_values="nan",
+                           parse_dates=["Time"])
+
+        found=False
+
+        #for ind in range(len(data)):
+            #print(data.Locations[ind].lower())
+            #print(station.lower())
+            #if data.Locations[ind].lower().strip() == station.lower().strip():
+
+            #data_cut = (data.loc[(data["Locations"].str.contains("helsinki"))])
+        data_cut = data[data["Locations"].str.contains(station[1:])]   #
+        if data_cut.empty:
+            print("need upper")
+            data_cut = data[data["Locations"].str.contains(station[1:].upper())]
+            if data_cut.empty:
+                print("Not finding match for name ",station)
+
+        print(data_cut)
+        new_data=pd.concat([new_data,data_cut])
+
+    print(len(new_data))
+
+    plotname="Model Data"
+    make_tseries(new_data, station,plotname)
+
+
+    return new_data
+
 
 def main():
     # Main of plotting timeseries of stations
@@ -111,8 +150,6 @@ def main():
     # take stations from point list
     # make plot & write -> move to next station
     ### STEP 3
-    # comment step 2
-    # take model data of 1 station from start-end
     # plot with another colour
     ### STEP 4
     # Uncomment step 2
@@ -143,14 +180,22 @@ def main():
     # Open stations tg-data and get time period
     station="helsinki"
 
+    # So far can only do 1 month at a time max in finding matching model data
+    year_to_get=time_period_start.strftime("%Y")
+    month_to_get=time_period_start.strftime("%m")
+    path_model_get = path_model+year_to_get+"/"+month_to_get+"/"
+    #print(path_model_get)
 
+    #print(year_to_get,month_to_get)
 
     os.chdir(path_tg)
 
     for file in glob.glob("*.txt"):
         if file.lower() == station + ".txt":
             namematch = True
-            get_tg(file)
+            tg_data=get_tg(file)
+            model_data=get_model(path_model_get,station)
+
 
 
 
