@@ -359,23 +359,6 @@ def get_surf(location,lat,lon,station):
 
 def main():
     # Main of plotting timeseries of stations
-    #### STEPS:
-    ### STEP 2
-    # take stations from point list
-    # make plot & write -> move to next station
-    ### STEP 3
-    # plot with another colour
-    ### STEP 5
-    # comment step 2
-    # plot with third colour
-
-    ### STEP 7
-    # Move plots into google drive
-    # Write thoughts of plots
-    # github the script
-
-    ### STEP 8
-    # Make runs for different time periods
 
     #NEXT
     ### PLAN SURFACE/MODEL scatterplot to same file/different file with same main
