@@ -16,22 +16,25 @@ import time
 #matplotlib.use('Agg')
 
 path = "/home/sanna/PycharmProjects/Daily_files/2007/"  # Path for the original data file folder, best not to have anything else
-output_path = "/home/sanna/PycharmProjects/Surfaces/TG/2007/"  # than the .txt data file in this directory
-time_period_start = datetime.datetime(2007, 1, 1, 0, 0)  # As intergers, just easier   (YYYY,Month,Day,Hour,Min)
-time_period_end = datetime.datetime(2007, 1, 1, 23, 00)
+output_path = "/home/sanna/PycharmProjects/Surfaces/TG/2007/10/"  # than the .txt data file in this directory
+time_period_start = datetime.datetime(2007,10,13, 0, 0)  # As intergers, just easier   (YYYY,Month,Day,Hour,Min)
+time_period_end = datetime.datetime(2007,10,14, 23, 00)
 grid_lat_min = 53.98112672        #48.4917 to 65.85825 mid points     # lat width 0.033269252873563214       smaller:58.40593736/53.98112672
 grid_lat_max = 65.85825
 grid_lat_num = 358         # 523                                                                        smaller:224/314
 grid_lon_min = 14.98269705     #9.047926 to 30.124683 mid points   # lon width  0.055465150000000005     smaller:16.813047 / 14.98269705
 grid_lon_max = 30.124683
 grid_lon_num = 274          #381                                                                        smaller:241 /274
-plotting = True  # If True plots each hour to a picture of the surface. Warning, takes long...
+plotting = False  # If True plots each hour to a picture of the surface. Warning, takes long...
+spotly_write = False    # Writes file for spotly output (not tested version), in mm and with spotly grid style
+write_sl = True        # Writes outputfile as txt file in cm and in order (min-max lat, min-max lon)
+timers = False
+test_run =False
 
 
 
-# Function 1
-def open_rfile(file_name):
-    # Called by: get_headers / Function 2,Calls: -
+
+def open_txtfile(file_name):
     # Opens a readable file and reads it
     try:
         file = open(file_name, 'r')
@@ -39,7 +42,7 @@ def open_rfile(file_name):
         file.close()
         ok = True
     except:
-        print("File {} couldn't be opened in open_rfile/Function1.".format(file_name))
+        print("File {} couldn't be opened:".format(file_name))
         # Returns empty data variable and False if not successfull
         ok = False
         data = []
@@ -48,16 +51,16 @@ def open_rfile(file_name):
     return data, ok
 
 
-# Function 3
-def get_data(day_time):
-    # # Called by: Main, Calls: open_rfile/Funtion1, eval_values /Function 4, write_output / Function 5
-    # # Finds data of correct hour and calls eval_values to get the evaluation of sea level in all points then
-    # calls write_output to write the hours values into spotly file.
 
-    okey = False
+def get_data(day_time):
+    # # Finds data of correct hour and calls eval_values to get the evaluation of sea level in all points then
+    # calls write_output to write the hours values into spotly file or sealevel file.
+
+
 
     # Open file of measurements for the correct day
-    (data, get_data_success) = open_rfile(day_time.strftime("%d_%m_%Y" + ".txt"))
+    filename= (day_time.strftime("%d_%m_%Y") + ".txt")
+    (data, get_data_success) = open_txtfile(filename)
     if not get_data_success:
         print("Warning, couldn't open file for the date", day_time)
         exit("Exiting program early 1")  # This shouldn't cause problems since all dates should have a a file even if limited data availability
@@ -77,32 +80,39 @@ def get_data(day_time):
                     lat.append(float(split_row[3].strip()))
                     lon.append(float(split_row[4].strip()))
                     slev.append(float(split_row[5].strip()))
+    #print(len(lat))
 
     if len(slev) > 0:  ## Here later some sort of when good enough estimation... len(slev)>A, bad but workable... etc
-        field = eval_values(lat, lon, slev, day_time)
-        write_ok = write_output(field, day_time)
-        if write_ok:
-            okey = True  # TÄMÄ MIETI
+        if test_run :
+            for ind in range(len(station)):
+                for ind2 in range(len(station)):
+                    if station[ind] == station[ind2]:
+                        if ind != ind2:
+                            print("At xx same name stations",day_time,station[ind],station[ind2])
         else:
-            okey = False
+            field = eval_values(lat, lon, slev, day_time)
+            if spotly_write :
+                write_ok = write_spotly(field, day_time)
+            elif write_sl :
+                write_ok = write_values(field,day_time,lat,lon)
+            else:
+                write_ok = False
+
+        #if write_ok:
+        #    print("Wrote file ",filename)
+
     else:
         print("Problems with the sea level measurements file, not enough measurements.")
-        okey = False
-
-    # write - output formating
-    # write - coordinate squares and width/height of area + number of squares
-    # write - zeros (angle) after values
-    # when write success okey=True
-
-    return okey
 
 
-# Function 4
+    return
+
+
+
 def eval_values(lat, lon, slev, date):
-    # Called by: get_data/Function 3 Calls: -
     # Evaluates sea level in all points
     # field=[]
-    # HERE take the plotting code and put it here, test working
+
 
     # My grid, grid specs are given as constants after imports in this script
     grid_lat = np.linspace(grid_lat_min, grid_lat_max, num=grid_lat_num)            # grid_lat ="y"
@@ -133,7 +143,7 @@ def eval_values(lat, lon, slev, date):
     if plotting == True:
         # Basemap from cartopy
         ax = plt.axes(projection=cartopy.crs.PlateCarree())
-        plt.pcolor(XGRID, YGRID, ZGRID, cmap=cm.jet, vmin=-30, vmax=110, zorder=1,
+        plt.pcolor(XGRID, YGRID, ZGRID, cmap=cm.jet, vmin=-30, vmax=110, zorder=1,          # -25,100
                    transform=cartopy.crs.PlateCarree())   # vmin=slev_min, vmax=slev_max
         ax.set_extent([16,31.2,56,66.8]) #([16,31.2,56,66.8])#([9.20, 31, 53.4, 66.2])
         ax.set_title('TG-surface interpolation rbf-thinplate ' + date.strftime("%d.%m.%Y %H:%M"))
@@ -145,16 +155,61 @@ def eval_values(lat, lon, slev, date):
         ax.plot(lon, lat, 'bo', markersize=3, transform=cartopy.crs.Geodetic(), zorder=3)
         ax.coastlines(resolution='50m', color='black', linewidth=1)
 
-        plt.colorbar(fraction=0.046, pad=0.04)
-        plt.savefig(output_path + 'Plots/tg_surf_' + date.strftime('%Ym%d_%H') + '.png')
+        plt.colorbar(fraction=0.046, pad=0.04,extend="both")
+        plt.savefig(output_path + 'Plots/tg_surf_' + date.strftime('%Y%m%d_%H') + '.png')
         plt.close()
 
     return ZGRID
 
 
-# Function 5
-def write_output(value_field, date):
-    # Called by: get_data /Function 3  , Calls: -
+
+def write_values(value_fields,date,lat,lon):
+    # Writes the output into a file
+    write_okey = True
+    output_file = output_path + date.strftime("%Y%m%d_%H") + ".txt"
+
+    try:
+        file = open(output_file, 'w')
+        # print(output_file)
+    except:
+        print("Couldn't open file to print into.")
+        write_okey = False
+        return write_okey
+
+    #print(value_fiels.shape)
+    # Length of header 7 lines
+    file.write("Interpolated Sealevels : rbf: thin plate \n")
+    file.write("Date: {}\n".format(date.strftime("%d.%m.%Y %H:%M")))
+    file.write("Values in cm \n")
+    file.write("GRID: Lat {:f} - {:f}, Lon {:f} - {:f} \n".format(grid_lat_min,grid_lat_max,grid_lon_min,grid_lon_max))
+    file.write("GRID: Lat length {:d}, Lon length {:d} \n".format(grid_lat_num,grid_lon_num))
+    file.write("In the beginning of file lat,lon of used tide gauge stations as list.  \n")
+
+    #print(len(value_fields[0]))
+   # print(len(lat),len(lon))
+
+    for ii in range(len(lat)):
+        file.write("{:f},{:f}".format(lat[ii],lon[ii]))
+        if ii != len(lat):
+            file.write("\t")
+    file.write("\n")
+
+
+    for latx in range(len(value_fields)):
+        for lonx in range(len(value_fields[0])):                        # This writes lon - > + on each row in order
+            file.write("{:f}".format(value_fields[latx,lonx]))          # lat - > +
+            if lonx != len(value_fields[0]):                            # NOT like physical field, since lat grows down on a file
+                file.write("\t")
+        if latx != len(value_fields):
+            file.write("\n")
+
+    file.close()
+
+
+    return write_okey
+
+
+def write_spotly(value_field, date):
     # Writes the output into a file
 
     write_okey = True
@@ -207,8 +262,6 @@ def write_output(value_field, date):
 
 
 def main():
-    # Called by: -, Calls:  get_data /Function
-    # Use: See readme file
     # print(path)
     os.chdir(path)
 
@@ -217,7 +270,7 @@ def main():
         exit()
     start_time = time_period_start
     end_time = time_period_end
-    count = 0
+
 
     if not os.path.exists(output_path):  # Making the output folder if needed
         os.makedirs(output_path, exist_ok=True)
@@ -226,16 +279,15 @@ def main():
 
     # HERE LOOPING HOURLY
     while end_time >= start_time:
+        #print("once",start_time)
         run_timer_start=time.time()
-        (data_found) = get_data(
-            start_time)  # Function 3, for opening and processing and writing to file the files for that hour
-        if not data_found:
-            print("Warning, Couldn't find data on ", start_time)
-        run_elapsed = time.time()-run_timer_start
-        print('run time: {}'.format(run_elapsed))
-        count = count + 1
+        get_data(start_time)  # Function 3, for opening and processing and writing to file the files for that hour
+        if timers:
+            run_elapsed = time.time()-run_timer_start
+            print('run time: {}'.format(run_elapsed))
+        print(start_time)
         start_time = start_time + datetime.timedelta(hours=1)
-        # print(start_time)
+
 
 
 if __name__ == '__main__':
