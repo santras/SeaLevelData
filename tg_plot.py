@@ -17,6 +17,7 @@ output_path ="/home/sanna/PycharmProjects/PLOTS/TG_Data_Checks/"
 
 start_time = datetime.datetime(2007,1,1)
 end_time = datetime.datetime(2016,12,31,23)
+monthly=False
 
 #
 def open_txtfile(file_name):
@@ -37,7 +38,7 @@ def open_txtfile(file_name):
 
 
 
-def open_cmemsfiles(file,year,month):
+def open_cmemsfiles(file, year, month=np.nan):
 
     # Opens CMEMS  files, then reads the data
     (data,okey) = open_txtfile(file)
@@ -73,7 +74,13 @@ def open_cmemsfiles(file,year,month):
     for ind in range(24,len(data)):
         splitline=(data[ind]).split()
         if int((splitline[0].strip()).split("-")[0]) == year:
-            if int((splitline[0].strip()).split("-")[1]) == month:
+            if monthly == True:
+                if int((splitline[0].strip()).split("-")[1]) == month:
+                    date.append(splitline[0].strip())
+                    time.append(splitline[1].strip())
+                    slev.append(float(splitline[2].strip()))
+                    qual.append(int(splitline[3].strip()))
+            else:
                 date.append(splitline[0].strip())
                 time.append(splitline[1].strip())
                 slev.append(float(splitline[2].strip()))
@@ -112,7 +119,7 @@ def process_file(filename,sl_variables,station,figu):
 
     plt.plot(values[0], values[1], markersize=1,label=station)
 
-    return figu, maxi, mini, tmax, tmin,nancount
+    return figu, maxi, mini, tmax, tmin
 
 
 
@@ -143,16 +150,53 @@ def main():
         os.makedirs(output_path, exist_ok=True)
 
 
-    #station_list = ["Hamina","Hogland","Sillamae","Kronstadt"]
-    station_list=["Hogland"]
+    #station_list = ["Hamina","Sillamae","Kronstadt"]
+    #station_list=["Porvoo","Helsinki","Tallinn","Paldiski"]
+    #station_list=["Hanko","Lehtma","Rohukula","Heltermaa"]
+    #station_list=["Turku","Degerby","Landsort","Stockholm","Forsmark"]
+    #station_list=["Rauma","Pori","Kaskinen","Spikarna","Skagsudde","Vaasa"]
+    station_list=["Ratan","Pietarsaari","Raahe","Oulu","Furuogrund","Kalix-Storon","Raahe","Oulu","Kemi"]
 
 
 
     if start_time.strftime("%Y") != end_time.strftime("%Y"):
         years = range(int(start_time.strftime("%Y")),int(end_time.strftime("%Y"))+1)
 
-    for year in years:
-        for month in range(1,13):
+
+
+    if monthly == True:
+
+        for year in years:
+            for month in range(1,13):
+
+                figur = plt.figure()
+                figur.set_size_inches(14, 8)
+                plt.xlabel("Time")
+                # plt.ylabel("Sea Level")
+                plt.title("Baltic Tide Gauge Sealevels")
+
+                mins = []
+                maxes = []
+                tmins = []
+                tmaxes = []
+
+                for file in glob.glob("*.txt"):                 # Opens all that ends with .txt in the path folder one by one                     # Matches only the needed ones
+                    for stat in station_list:
+                        if fnmatch.fnmatch(file, "*"+stat+"*" ):
+                            (sl_variables, station, okey) = open_cmemsfiles(file,year,month)
+                            if len(sl_variables)>0:
+                                (figur, maxi, mini, tmax, tmin)= process_file(file, sl_variables, station,figur)
+                                mins.append(mini)
+                                maxes.append(maxi)
+                                tmins.append(tmin)
+                                tmaxes.append(tmax)
+
+                #time_min=np.min(tmins)
+
+                end_plot(figur, output_path+"plot_bothnian_bay"+str(year)+"_"+str(month)+".png", np.nanmax(maxes), np.nanmin(mins), np.max(tmaxes), np.min(tmins),station_list)
+    else:
+
+        for year in years:
 
             figur = plt.figure()
             figur.set_size_inches(14, 8)
@@ -165,20 +209,23 @@ def main():
             tmins = []
             tmaxes = []
 
-            for file in glob.glob("*.txt"):                 # Opens all that ends with .txt in the path folder one by one                     # Matches only the needed ones
+            for file in glob.glob(
+                    "*.txt"):  # Opens all that ends with .txt in the path folder one by one                     # Matches only the needed ones
                 for stat in station_list:
-                    if fnmatch.fnmatch(file, "*"+stat+"*" ):
-                        (sl_variables, station, okey) = open_cmemsfiles(file,year,month)
-                        if len(sl_variables)>0:
-                            (figur, maxi, mini, tmax, tmin)= process_file(file, sl_variables, station,figur)
+                    if fnmatch.fnmatch(file, "*" + stat + "*"):
+                        (sl_variables, station, okey) = open_cmemsfiles(file, year)
+                        if len(sl_variables) > 0:
+                            (figur, maxi, mini, tmax, tmin) = process_file(file, sl_variables, station, figur)
                             mins.append(mini)
                             maxes.append(maxi)
                             tmins.append(tmin)
                             tmaxes.append(tmax)
 
-            #time_min=np.min(tmins)
+            # time_min=np.min(tmins)
 
-            end_plot(figur, output_path+"plot_hogland_"+str(year)+"_"+str(month)+".png", np.nanmax(maxes), np.nanmin(mins), np.max(tmaxes), np.min(tmins),station_list)
+            end_plot(figur, output_path + "plot_bothnian_bay_" + str(year) + ".png", np.nanmax(maxes),
+                     np.nanmin(mins), np.max(tmaxes), np.min(tmins), station_list)
+
 
 
 
