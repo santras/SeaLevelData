@@ -416,7 +416,7 @@ def main():
 
         for plot_year in years:
 
-            output_folder = output_path + station + "_" + str(plot_year) + "/"
+            output_folder = output_path + station + "/"
             if not os.path.exists(output_folder):  # Making the output folder if needed
                 os.makedirs(output_folder, exist_ok=True)
 
@@ -488,10 +488,10 @@ def main():
                 if len(model_data) < 1:
                     print("Couldn't find model and surface data on:", station)
                     continue
-                elif tg_found:
-                    if len(model_data) != len(tgdata):
-                        print("Model data not same length as tg-data in:", station, len(tgdata), len(model_data))
-                        exit(1)
+                #elif tg_found:
+                #    if len(model_data) != len(tgdata):
+                #       print("Model data not same length as tg-data in:", station, len(tgdata), len(model_data))
+                #        exit(1)
                 model_data = check_sldata(model_data)
                 model_lat = (model_data.M_Latitudes.values[0])  ## getting model lat and lon for getting the surface value
                 model_lon = (model_data.M_Longitudes.values[0])
@@ -503,10 +503,10 @@ def main():
                 if len(surf_data) < 1:
                     print("Couldn't find surface data on:", station)
                     continue
-                elif tg_found:
-                    if len(surf_data) != len(tgdata):
-                        print("Surface data not same length as tg-data in:", station, len(tgdata), len(surf_data))
-                        exit(1)
+                #elif tg_found:
+                #    if len(surf_data) != len(tgdata):
+                #        print("Surface data not same length as tg-data in:", station, len(tgdata), len(surf_data))
+                #        exit(1)
 
                 if len(surf_data) != len(model_data):
                     print("Surface data not same length as model data in:", station, len(tgdata), len(surf_data))

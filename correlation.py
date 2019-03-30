@@ -11,12 +11,12 @@ path_model="/home/sanna/PycharmProjects/ModelData/Locations/"
 #path_tg="/home/sanna/PycharmProjects/TGData_EVRF2007_txt_cleaned_cut/"
 path_surf="/home/sanna/PycharmProjects/Surfaces/TG/"
 points_list="/home/sanna/PycharmProjects/NorthernBaltic_Points_of_Interest_cleaned.txt"
-output_path="/home/sanna/PycharmProjects/PLOTS/Correlation/"
+output_path="/home/sanna/PycharmProjects/Year_file_resampled/"
 
 #time_period_start=datetime.datetime(1993,1,1,0,0)
-time_period_start=datetime.datetime(2007,1,1,0,0)       # Only understands full days
-time_period_end=datetime.datetime(2007,1,31,23,0
-#time_period_end=datetime.datetime(2016,12,31,23,0)
+time_period_start=datetime.datetime(2015,1,1,0,0)       # Only understands full days
+#time_period_end=datetime.datetime(2007,1,31,23,0)
+time_period_end=datetime.datetime(2015,12,31,23,0)
 
 grid_lat_min = 53.98112672
 grid_lat_max = 65.85825
@@ -25,6 +25,10 @@ grid_lon_min = 14.98269705
 grid_lon_max = 30.124683
 grid_lon_num = 274
 
+
+# 2007,2011,2012,2016
+# 2008,2009,2010
+# 2013,2014,2015,2016
 
 
 
@@ -236,15 +240,17 @@ def main():
 
     # Initializing data frames
     indexes = pd.date_range(time_period_start,time_period_end,freq="H")
-    mycolumns=["Model_Sealevel","Interp_Sealevel","Difference"]
+    mycolumns=["Model_Sealevel","Interp_Sealevel"]
+
 
     #data_all={}                 # Dictionary of dataframes by station
     # Going through data with station by station
     for station in stations:
         #data_all[station] = pd.DataFrame(index=indexes,columns=mycolumns)
-        this_station = pd.DataFrame(index=indexes, columns=mycolumns)
-        this_station[:]=np.nan
-        print(station, len(this_station))
+        #this_station = pd.DataFrame(index=indexes, columns=mycolumns)
+        #this_station[:]=np.nan
+        #print(station, len(this_station))
+        print(station)
         # Year loop
         year_start = int(time_period_start.strftime("%Y"))
         year_end = int(time_period_end.strftime("%Y"))
@@ -255,6 +261,10 @@ def main():
         # Going through years
         for plot_year in years:                         # copied from plotting script so names a bit silly
                                                         # for example plot_year= year_analysing would be better...
+            this_station = pd.DataFrame(index=indexes, columns=mycolumns)
+            this_station[:] = np.nan
+            print(plot_year)
+
             if plot_year == years[0]:
                 first_year = True
             else:
@@ -277,6 +287,7 @@ def main():
 
             # Going through months
             for month in months:
+
 
                 # define plotting start - end
                 if (first_year and month == months[0] ):
@@ -342,27 +353,42 @@ def main():
 
                 this_station.loc[surf_data.index,["Interp_Sealevel"]] = surf_data.Sealevels
                 this_station.loc[model_data.index,["Model_Sealevel"]] = model_data.Sealevels
-                #data_all[station].loc[surf_data.index, "Interp_Sealevel"] = surf_data.Sealevels
-                #this_station.loc[model_data.index,"Model_Sealevel"] = model_data.Sealevels
-                #this_station.loc[surf_data.index,"Interp_Sealevel"] = surf_data.Sealevels
-                #print(data_all[station].loc[model_data.index].head())
-                #print(this_station.info())
-                #print(this_station.astype('float64').corr())
+                month_corr = surf_data.astype("float64").corrwith(model_data.Sealevels.astype("float64"))
+                #print(month_corr)
 
-                #data_all[station].loc[surf_data.index,"Difference"]=data_all[station].loc[surf_data.index,"Interp_Sealevel"]-data_all[station].loc[surf_data.index,"Model_Sealevel"]
-        correlation=(this_station.astype("float64").corr())
-        print(time_period_start.strftime("%d.%m.%Y - "),time_period_end.strftime("%d.%m.%Y"))
-        print(correlation)
-        stats=this_station.astype("float64").describe()
-        print(stats)
-        #print(this_station.head(),this_station.tail)
 
-        #correlation=data_all[station].corr(method="pearson")
-        #print(station,len(data_all[station]),data_all[station].head())
+
+            this_station["Difference"] = this_station.Interp_Sealevel - this_station.Model_Sealevel
+            print("Year_Correlation")
+            correlation = (this_station.astype("float64").corr())
+            #print(time_period_start.strftime("%d.%m.%Y - "), time_period_end.strftime("%d.%m.%Y"))
+            print(correlation)
+            stats=(this_station.astype("float64").describe())
+            print(stats)
+            #print("original")
+            #print(this_station.head())
+            series_interp = this_station.Interp_Sealevel.astype("float64").resample("4H").mean()
+            series_model = this_station.Model_Sealevel.astype("float64").resample("4H").mean()
+            #print("new")
+            #print(series_interp.head())
+
+            filename=output_folder+station+"_"+str(plot_year)+".txt"
+            file = open(filename,"w")
+            for ii in range (len(series_interp)):
+                file.write("{:20}\t{:10.6}\t{:10.6}\n".format(series_interp.index[ii].strftime("%Y-%m-%d %H:00"),series_interp.values[ii],series_model.values[ii]))
+
+            file.close()
+
+        #this_station["Difference"] = this_station.Interp_Sealevel-this_station.Model_Sealevel
+        #correlation=(this_station.astype("float64").corr())
+        #print(time_period_start.strftime("%d.%m.%Y - "),time_period_end.strftime("%d.%m.%Y"))
         #print(correlation)
+        #stats=this_station.astype("float64").describe()
+        #print(stats)
 
 
-        # appendaa dataframe isoksi, this-station, tuo stats ja correlaatio
+
+
     return
 
 

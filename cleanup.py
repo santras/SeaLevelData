@@ -6,8 +6,8 @@ import os, glob
 import pandas as pd
 from scipy import stats
 
-path="/home/sanna/PycharmProjects/TGData_EVRF2007_txt/"
-output_path = "/home/sanna/PycharmProjects/TGData_EVRF2007_txt_cleaned/"
+path="/home/sanna/PycharmProjects/TGData_EVRF2007_txt_cleaned/"
+output_path = "/home/sanna/PycharmProjects/TGData_EVRF2007_txt_cleaned_new/"
 #path="/home/sanna/PycharmProjects/Tests/"
 #output_path="/home/sanna/PycharmProjects/Tests/Test/"
 ## Only works at the moment for non-gl header type
@@ -426,7 +426,7 @@ def add_interp(dates,slevs,labels,interp_limit):
 
 def main():
     os.chdir(path)
-    for filename in glob.glob("Porvoo_test_file.txt"):
+    for filename in glob.glob("*.txt"):
         file = open (filename,"r")
         data = file.readlines()
         file.close()

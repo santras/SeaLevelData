@@ -12,7 +12,7 @@ from geopy import distance as gd
 
 
 
-interest_points=("/home/sanna/PycharmProjects/ModelData/NorthernBaltic_Points_of_Interest.txt")
+interest_points=("/home/sanna/PycharmProjects/NorthernBaltic_Points_of_Interest_cleaned.txt")
 in_path="/home/sanna/PycharmProjects/ModelData/my.cmems-du.eu/Core/BALTICSEA_REANALYSIS_PHY_003_011/dataset-reanalysis-nemo-surface/"     # Path for the original data file folder, script goes throuh all .nc files in the folder
 output_path= "/home/sanna/PycharmProjects/ModelData/Locations/"      # Outputpath
 
@@ -371,7 +371,7 @@ def main():
 
     file_number = 0
 
-    for year in range(1993,2017):
+    for year in range(2004,2017):
         year_s=str(year)+"/"
         #os.chdir(path_year)
         #print(path_year)

@@ -10,26 +10,30 @@ from matplotlib import cm
 import cartopy
 import math
 import time
+from netCDF4 import Dataset
+import numpy.ma as ma
 
 #from matplotlib.backends.backend_agg import FigureCanvasAgg
 #import matplotlib
 #matplotlib.use('Agg')
 
-path = "/home/sanna/PycharmProjects/Daily_files/2007/"  # Path for the original data file folder, best not to have anything else
-output_path = "/home/sanna/PycharmProjects/Surfaces/TG/2007/10/"  # than the .txt data file in this directory
-time_period_start = datetime.datetime(2007,10,13, 0, 0)  # As intergers, just easier   (YYYY,Month,Day,Hour,Min)
-time_period_end = datetime.datetime(2007,10,14, 23, 00)
+path = "/home/sanna/PycharmProjects/Daily_files_cut/2007_2016/"  # Path for the original data file folder, best not to have anything else
+model_path ="/home/sanna/PycharmProjects/ModelData/NEMO/2007/01/"
+output_path = "/home/sanna/PycharmProjects/Surfaces/TG/2016_cut/all/"  # than the .txt data file in this directory
+time_period_start = datetime.datetime(2016,11,12, 0, 0)  # As intergers, just easier   (YYYY,Month,Day,Hour,Min)
+time_period_end = datetime.datetime(2016,11,22, 23, 00)
 grid_lat_min = 53.98112672        #48.4917 to 65.85825 mid points     # lat width 0.033269252873563214       smaller:58.40593736/53.98112672
 grid_lat_max = 65.85825
 grid_lat_num = 358         # 523                                                                        smaller:224/314
 grid_lon_min = 14.98269705     #9.047926 to 30.124683 mid points   # lon width  0.055465150000000005     smaller:16.813047 / 14.98269705
 grid_lon_max = 30.124683
 grid_lon_num = 274          #381                                                                        smaller:241 /274
-plotting = False  # If True plots each hour to a picture of the surface. Warning, takes long...
+plotting = True  # If True plots each hour to a picture of the surface. Warning, takes long...
 spotly_write = False    # Writes file for spotly output (not tested version), in mm and with spotly grid style
 write_sl = True        # Writes outputfile as txt file in cm and in order (min-max lat, min-max lon)
 timers = False
-test_run =False
+run_with_test =True # Slower but with extra test of non-unique time stamps that mess with the interpolation
+plot_model =False # Not working
 
 
 
@@ -50,6 +54,33 @@ def open_txtfile(file_name):
 
     return data, ok
 
+def get_model(day_time):
+
+    # Open file of measurements for the correct day
+    # Data: CMEMS_BAL_PHY_reanalysis_surface_20070101.nc
+
+    file=model_path+("CMEMS_BAL_PHY_reanalysis_surface_"+day_time.strftime("%Y%m%d") + ".nc")
+    print(file)
+    try:
+        nc_data = Dataset(file, 'r')
+        lat = ma.masked_array(nc_data.variables['latitude'][:])
+        lon = ma.masked_array(nc_data.variables['longitude'][:])
+        sealev = ma.masked_array(nc_data.variables['sla'][:])
+
+        sealev.mask = ma.nomask  ## no mask makes masked nans
+        lat.mask = ma.nomask
+        lon.mask = ma.nomask
+        okey = True
+
+        #for hh in range(0,24):
+            #print(sealev[hh][:][:].shape)
+            #print(day_time)
+            #plot_surf(day_time+datetime.timedelta(seconds=(3600*hh)), lat, lon, sealev[hh][:][:])
+    except:
+        okey = False
+        return [], [], [],okey
+
+    return lat,lon,sealev,okey
 
 
 def get_data(day_time):
@@ -59,11 +90,19 @@ def get_data(day_time):
 
 
     # Open file of measurements for the correct day
-    filename= (day_time.strftime("%d_%m_%Y") + ".txt")
+    filename= (day_time.strftime("%Y_%m_%d") + ".txt")
     (data, get_data_success) = open_txtfile(filename)
     if not get_data_success:
         print("Warning, couldn't open file for the date", day_time)
         exit("Exiting program early 1")  # This shouldn't cause problems since all dates should have a a file even if limited data availability
+
+    if plot_model == True:
+        (model_lat,model_lon,model_slev,okey)=get_model(day_time)
+        if not okey:
+            print("Couldn't find or open model data for ",day_time)
+         # Get model data of the same hour
+        hh = int(day_time.strftime("%H"))
+        model_slev = model_slev[hh][:][:]
 
     station = []
     lat = []
@@ -75,28 +114,49 @@ def get_data(day_time):
         split_row = row.split()
         if split_row[1].strip() == day_time.strftime("%H" + ":00"):
             if not np.isnan(float(split_row[5].strip())):       #not nan values
-                if (int(split_row[6].strip())) in (1,2,8): # good value, probably good value, interpolated
+                if (int(split_row[6].strip())) in (0,1,2,8): # not used, good value, probably good value, interpolated
                     station.append(split_row[2].strip())
                     lat.append(float(split_row[3].strip()))
                     lon.append(float(split_row[4].strip()))
                     slev.append(float(split_row[5].strip()))
     #print(len(lat))
 
+
     if len(slev) > 0:  ## Here later some sort of when good enough estimation... len(slev)>A, bad but workable... etc
-        if test_run :
-            for ind in range(len(station)):
-                for ind2 in range(len(station)):
-                    if station[ind] == station[ind2]:
-                        if ind != ind2:
-                            print("At xx same name stations",day_time,station[ind],station[ind2])
+
+        # test for duplicate time stamps
+        removables=[]
+        if run_with_test :
+            (uniq_list,uniq_index) = np.unique(station,return_index = True) # Get unique version of list and original indexes, beware unique list is sorted
+            if len(uniq_list) != len(station): # If there is non-unique entry in station
+                for ii in range(len(station)):  # Go through station list
+                    found = False
+                    for index in uniq_index:    # Go through unique indexes
+                        if ii == index:
+                            found = True
+
+                    if not found:
+                        print("Removing duplicate measurement ",ii,station[ii],day_time)
+                        removables.append(ii)
+            if removables !=[]:
+                for index in removables:
+                    del(station[index])
+                    del(lat[index])
+                    del(lon[index])
+                    del[slev[index]]
+
+
+        if plot_model == True:
+            field = eval_values(lat, lon, slev, day_time,model_lat,model_lon,model_slev)
         else:
             field = eval_values(lat, lon, slev, day_time)
-            if spotly_write :
-                write_ok = write_spotly(field, day_time)
-            elif write_sl :
-                write_ok = write_values(field,day_time,lat,lon)
-            else:
-                write_ok = False
+
+        if spotly_write :
+            write_ok = write_spotly(field, day_time)
+        elif write_sl :
+            write_ok = write_values(field,day_time,lat,lon)
+        else:
+            write_ok = False
 
         #if write_ok:
         #    print("Wrote file ",filename)
@@ -109,7 +169,8 @@ def get_data(day_time):
 
 
 
-def eval_values(lat, lon, slev, date):
+def eval_values(lat, lon, slev, date,model_lat=[],model_lon=[],model_slev=[]):
+
     # Evaluates sea level in all points
     # field=[]
 
@@ -141,23 +202,64 @@ def eval_values(lat, lon, slev, date):
 
 
     if plotting == True:
-        # Basemap from cartopy
-        ax = plt.axes(projection=cartopy.crs.PlateCarree())
-        plt.pcolor(XGRID, YGRID, ZGRID, cmap=cm.jet, vmin=-30, vmax=110, zorder=1,          # -25,100
+
+        if plot_model == False:
+            # Basemap from cartopy
+            fig=plt.figure()
+            #fig.set_size_inches(14, 8)
+            ax = plt.axes(projection=cartopy.crs.PlateCarree())
+            plt.pcolor(XGRID, YGRID, ZGRID, cmap=cm.jet, vmin=-20, vmax=100, zorder=1,          # -25,100
                    transform=cartopy.crs.PlateCarree())   # vmin=slev_min, vmax=slev_max
-        ax.set_extent([16,31.2,56,66.8]) #([16,31.2,56,66.8])#([9.20, 31, 53.4, 66.2])
-        ax.set_title('TG-surface interpolation rbf-thinplate ' + date.strftime("%d.%m.%Y %H:%M"))
-        land_50m = cartopy.feature.NaturalEarthFeature('physical', 'land', '50m', edgecolor='face',zorder=2,
+            ax.set_extent([16,31.2,58,66.8]) #([16,31.2,56,66.8])#([9.20, 31, 53.4, 66.2])
+            ax.set_title('Sea Level Surface Interpolation ' + date.strftime("%d.%m.%Y %H:%M"),fontsize=14)
+            land_50m = cartopy.feature.NaturalEarthFeature('physical', 'land', '50m', edgecolor='face',zorder=2,
                                                        facecolor="white")
                                                        #facecolor=cartopy.feature.COLORS['land'])
-        ax.add_feature(land_50m)
+            ax.add_feature(land_50m)
 
-        ax.plot(lon, lat, 'bo', markersize=3, transform=cartopy.crs.Geodetic(), zorder=3)
-        ax.coastlines(resolution='50m', color='black', linewidth=1)
+            ax.plot(lon, lat, 'bo', markersize=3, transform=cartopy.crs.Geodetic(), zorder=3)
+            ax.coastlines(resolution='50m', color='black', linewidth=1)
 
-        plt.colorbar(fraction=0.046, pad=0.04,extend="both")
-        plt.savefig(output_path + 'Plots/tg_surf_' + date.strftime('%Y%m%d_%H') + '.png')
-        plt.close()
+            plt.colorbar(fraction=0.046, pad=0.04,extend="both")
+            plt.savefig(output_path + 'Plots/tg_surf_' + date.strftime('%Y%m%d_%H') + '.png')
+            plt.close()
+
+
+        else:
+            # surface
+            # Basemap from cartopy
+            (fig, ax) = plt.subplots(2, 1)  # figure()
+            #fig.set_size_inches(14, 8)
+            ax[0] = plt.axes(projection=cartopy.crs.PlateCarree())
+            plt.pcolor(XGRID, YGRID, ZGRID, cmap=cm.jet, vmin=-20, vmax=100, zorder=1,  # -25,100
+                       transform=cartopy.crs.PlateCarree())  # vmin=slev_min, vmax=slev_max
+            ax[0].set_extent([16, 31.2, 58, 66.8])  # ([16,31.2,56,66.8])#([9.20, 31, 53.4, 66.2])
+            ax[0].set_title('TG-surface interpolation rbf-thinplate ' + date.strftime("%d.%m.%Y %H:%M"), fontsize=14)
+            land_50m = cartopy.feature.NaturalEarthFeature('physical', 'land', '50m', edgecolor='face', zorder=2,
+                                                           facecolor="white")
+            # facecolor=cartopy.feature.COLORS['land'])
+            ax[0].add_feature(land_50m)
+
+            ax[0].plot(lon, lat, 'bo', markersize=3, transform=cartopy.crs.Geodetic(), zorder=3)
+            ax[0].coastlines(resolution='50m', color='black', linewidth=1)
+
+            plt.colorbar(fraction=0.046, pad=0.04, extend="both")
+
+
+            ax[1].plot(model_lon,model_lon)
+            # model
+            #ax[1] = plt.axes(projection=cartopy.crs.PlateCarree())
+            #ax[1].pcolor(lon, lat, slev, cmap=cm.jet, vmin=-0.3, vmax=0.5, zorder=1,
+            #           transform=cartopy.crs.PlateCarree())  # vmin=slev_min, vmax=slev_max
+            #ax[1].set_extent([16, 31.2, 58, 66.8])  # ([16,31.2,56,66.8])#([9.20, 31, 53.4, 66.2])
+            #ax[1].set_title('Model surface ' + date.strftime("%d.%m.%Y %H:%M"))
+            #ax[1].colorbar(fraction=0.046, pad=0.04)
+
+
+            # saving and closing
+            plt.savefig(output_path + 'Plots/tg_surf_' + date.strftime('%Y%m%d_%H') + '.png', dpi=100)
+            plt.close()
+
 
     return ZGRID
 

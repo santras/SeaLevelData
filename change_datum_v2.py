@@ -13,8 +13,8 @@ from scipy import stats
 
 
 station_country_list=('station_countries.txt')                # Stations by countries txt file, should be in the data directory
-path="../TGData_txt//"                        # Path for the original data file folder, script goes throuh all .txt files in the folder
-output_path= path +"../TGData_EVRF2007_txt//"      # Outputpath
+path="/home/sanna/PycharmProjects/TGData_txt/"                        # Path for the original data file folder, script goes throuh all .txt files in the folder
+output_path= path +"/home/sanna/PycharmProjects/TGData_EVRF2007_txt"      # Outputpath
 datum_new="EVRF2007"                                                 # The new datum
 fin_change_table="/home/sanna/PycharmProjects/SeaLevelData/Fin_MSL_NN2000_chart_1931_2018.txt"
 

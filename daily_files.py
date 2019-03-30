@@ -9,12 +9,13 @@ from scipy import stats
 
 # The purpose of this code is to re-write the station-by-station sealevel files into day by day sealevel files to make the plotting faster
 
-path="/home/sanna/PycharmProjects/TGData_EVRF2007_txt_cleaned/"                            # Path for the original data file folder, best not to have anything else
-output_path= "/home/sanna/PycharmProjects/Daily_files/2017/"        # than the .txt data file in this directory
+path="/home/sanna/PycharmProjects/TGData_EVRF2007_txt"                            # Path for the original data file folder, best not to have anything else
+output_path= "/home/sanna/PycharmProjects/Daily_files_Maaria/2017/"        # than the .txt data file in this directory
 time_period_start=datetime.datetime(2017,1,1,0,0)                    # As intergers, just easier   (YYYY,Month,Day,Hour,Min)
 time_period_end=datetime.datetime(2017,12,31,23,0)
-# doing 2017
 
+#with whole area done till 27.10.2012 / without Hogland but not with new cleaned up versions of files...
+# doing with txt_cleaned_cut which is from newer cleaned files but only once needed 21.7.2010
 
 
 def open_txtfile(file_name):
@@ -167,7 +168,7 @@ def format_data(data, start):
 def write_output(sl_variables,time_marker):
     # Writes the output
 
-    output_file=output_path+time_marker.strftime("%d_%m_%Y")+".txt"
+    output_file=output_path+time_marker.strftime("%Y_%m_%d")+".txt"
 
     # Writing values
     date=[]

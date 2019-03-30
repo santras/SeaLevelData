@@ -8,12 +8,12 @@ from PIL import Image
 from dateutil.rrule import rrule, HOURLY
 
 
-outputpath="/home/sanna/PycharmProjects/PLOTS/Combined_Maps/"
-inputfolder1="/home/sanna/PycharmProjects/Surfaces/TG/2007/all/Plots_orig_grid/"
-inputfolder2="/home/sanna/PycharmProjects/Surfaces_older/Model/2007/"
+outputpath="/home/sanna/PycharmProjects/PLOTS/Combined_Maps/2016/"
+inputfolder1="/home/sanna/PycharmProjects/Surfaces/Model/2016/"
+inputfolder2="/home/sanna/PycharmProjects/Surfaces/TG/2016_cut/all/Plots/"
 
-start_time=datetime.datetime(2007,1,1,0)
-end_time=datetime.datetime(2007,1,1,10)
+start_time=datetime.datetime(2016,1,1,0)
+end_time=datetime.datetime(2016,1,31,23)
 
 
 
@@ -30,10 +30,11 @@ def main():
 
 
         # creating image names
-        new_file = outputpath+"surf_dpic_"+timestep.strftime("%Y%m%d_%H") +".png"
-        old_file_1 = inputfolder1+"tg_surf_"+timestep.strftime("%Y%m%d_%H")+".png"
-        old_file_2 = inputfolder2 + "model_surf_"+timestep.strftime("%Y%m%d_%H") + ".png"
+        new_file = outputpath+"surf_pic_test_"+timestep.strftime("%Y%m%d_%H") +".png"
+        old_file_1 = inputfolder2+"tg_surf_"+timestep.strftime("%Y%m%d_%H")+".png"
+        old_file_2 = inputfolder1 + "model_surf_"+timestep.strftime("%Y%m%d_%H") + ".png"
         #print (new_file,old_file_1,old_file_2)
+
 
         # opening the images
         new_image = Image.new("RGB",(1280,480))
